@@ -1,0 +1,32 @@
+﻿# Compiled Java
+*.class
+*.jar
+*.war
+
+# Build outputs
+out/
+build/
+dist/
+target/
+bin/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+nbproject/
+.settings/
+.classpath
+.project
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Environment
+.env
