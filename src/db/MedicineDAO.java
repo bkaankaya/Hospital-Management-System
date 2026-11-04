@@ -32,7 +32,7 @@ public class MedicineDAO {
 			}		
 	}
 	
-	// returns medicine names from department inventory
+	// returns medicine names from Department inventory
 	public ArrayList<String> getMedicineList(String department_name) {
         ArrayList<String> list = new ArrayList<>();
         String sql = "SELECT DISTINCT Medicine_Name FROM medicine WHERE Department_Name = ? AND consumed = 0 ORDER BY Medicine_Name";
