@@ -14,9 +14,12 @@ CREATE TABLE IF NOT EXISTS Patient (
     Gender VARCHAR(20) NOT NULL,
     Address VARCHAR(500),
     Date_Of_Birth DATE NOT NULL,
-    password_hash VARCHAR(128) NULL,
+    National_ID VARCHAR(11) NULL UNIQUE,
+    password_hash VARCHAR(255) NULL,
     salt VARCHAR(128) NULL,
-    is_active TINYINT NOT NULL DEFAULT 1
+    is_active TINYINT NOT NULL DEFAULT 1,
+    Failed_Attempts INT NOT NULL DEFAULT 0,
+    Locked_Until DATETIME(6) NULL
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS Doctor (
@@ -27,9 +30,12 @@ CREATE TABLE IF NOT EXISTS Doctor (
     Address VARCHAR(500),
     Date_Of_Birth DATE NOT NULL,
     Department_Name VARCHAR(80) NOT NULL,
-    password_hash VARCHAR(128) NULL,
+    National_ID VARCHAR(11) NULL UNIQUE,
+    password_hash VARCHAR(255) NULL,
     salt VARCHAR(128) NULL,
     is_active TINYINT NOT NULL DEFAULT 1,
+    Failed_Attempts INT NOT NULL DEFAULT 0,
+    Locked_Until DATETIME(6) NULL,
     CONSTRAINT fk_doctor_department FOREIGN KEY (Department_Name) REFERENCES Department(Department_Name)
 ) ENGINE=InnoDB;
 
