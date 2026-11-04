@@ -87,7 +87,7 @@ public class PatientDAO {
 	public void updateAddress(int patient_ssn, String new_address) {
 		try (Connection con = DatabaseManager.getConnection();
 			Statement st = con.createStatement() ){
-			String query = "update patient set address = ? where SSN =" + patient_ssn;
+			String query = "update Patient set address = ? where SSN =" + patient_ssn;
 		try	(PreparedStatement pst = con.prepareStatement(query) ){
 			pst.setString(1, new_address);
 			pst.executeUpdate();
@@ -146,7 +146,7 @@ public class PatientDAO {
 	public boolean checkPatientLogin(int patient_SSN, String name, String surname) 
 	{
 		try (Connection con = DatabaseManager.getConnection();
-			PreparedStatement pst = con.prepareStatement("SELECT * FROM patient where SSN=? and name=? and surname=?") ){
+			PreparedStatement pst = con.prepareStatement("SELECT * FROM Patient where SSN=? and name=? and surname=?") ){
 			pst.setInt(1, patient_SSN);
 			pst.setString(2, name);
 			pst.setString(3, surname);
