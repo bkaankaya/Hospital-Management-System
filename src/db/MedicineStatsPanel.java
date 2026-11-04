@@ -34,16 +34,21 @@ public class MedicineStatsPanel extends JPanel {
         add(scrollPane);
 
         deptCombo.addActionListener(e -> {
-            // Örnek veriler; gerçek veriler DAO’dan alınmalıdır.
-            String avg = "5";
-            String sum = "100";
-            textArea.setText("Avg medicine number grouped by medicine_name: " + avg +
-                    "\nSum of barcode numbers: " + sum);
+            java.util.List<String> values = new MedicineDAO().getStatistics(
+                    (String) deptCombo.getSelectedItem());
+            if (values == null || values.size() < 2) {
+                textArea.setText("Could not read medicine statistics.");
+                return;
+            }
+            String avg = values.get(0) == null ? "0" : values.get(0);
+            String sum = values.get(1) == null ? "0" : values.get(1);
+            textArea.setText("Avg medicine number grouped by medicine_name: " + avg
+                    + "\nSum of barcode numbers: " + sum);
         });
 
         JButton backButton = new JButton("Geri");
         backButton.setBounds(10, 10, 80, 30);
         add(backButton);
-        backButton.addActionListener(e -> mainFrame.showPanel(MainFrame.PATIENT_DASHBOARD_PANEL));
+        backButton.addActionListener(e -> mainFrame.showPanel(MainFrame.INSERT_MENU_PANEL));
     }
 }
