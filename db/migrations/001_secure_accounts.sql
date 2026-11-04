@@ -1,7 +1,7 @@
 -- Run ONCE after a verified database backup. Never apply over live data without a maintenance window.
 -- Keeps the legacy 32-bit SSN primary keys and their foreign-key relationships intact.
 -- National_ID preserves the full 11 digits (including leading zeros) in a separate field.
--- Existing accounts with NULL password_hash remain unable to sign in until provisioned.
+-- Existing accounts with NULL or legacy SHA-256 password_hash remain unable to sign in until provisioned.
 USE hospital;
 ALTER TABLE Patient
     ADD COLUMN National_ID VARCHAR(11) NULL,
