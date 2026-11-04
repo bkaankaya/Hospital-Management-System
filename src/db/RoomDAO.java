@@ -46,7 +46,7 @@ public class RoomDAO {
             pst.setInt(2, room.Room_ID);
             pst.executeUpdate();
         } catch (SQLException e) {
-            System.err.println("Failed to update room department: " + e.getMessage());
+            System.err.println("Failed to update Room department: " + e.getMessage());
         }
     }
 	
