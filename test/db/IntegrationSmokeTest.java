@@ -52,6 +52,43 @@ public final class IntegrationSmokeTest {
         require(appointmentDao.cancelDoctorAppointment(appointmentId, doctorId),
                 "Doctor cancellation failed");
 
+        // Regression: eight simultaneous requests for one slot must yield one durable booking.
+        // Every other request must fail closed; no dependence on external API keys.
+        java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(8);
+        java.util.concurrent.CountDownLatch ready = new java.util.concurrent.CountDownLatch(8);
+        java.util.concurrent.CountDownLatch start = new java.util.concurrent.CountDownLatch(1);
+        java.util.List<java.util.concurrent.Future<Boolean>> attempts = new java.util.ArrayList<>();
+        try {
+            for (int index = 0; index < 8; index++) {
+                attempts.add(pool.submit(() -> {
+                    ready.countDown();
+                    if (!start.await(15, java.util.concurrent.TimeUnit.SECONDS)) {
+                        throw new AssertionError("Concurrent booking start timed out");
+                    }
+                    return appointmentDao.bookAppointment(
+                            new Appointment(date, "09:30:00", patientId, doctorId));
+                }));
+            }
+            require(ready.await(15, java.util.concurrent.TimeUnit.SECONDS),
+                    "Not all booking workers became ready");
+            start.countDown();
+            int accepted = 0;
+            for (java.util.concurrent.Future<Boolean> attempt : attempts) {
+                if (attempt.get(30, java.util.concurrent.TimeUnit.SECONDS)) accepted++;
+            }
+            require(accepted == 1, "Exactly one of eight conflicting bookings must succeed");
+            java.util.List<String> concurrentIds = appointmentDao.getDocAppointments(doctorId);
+            require(concurrentIds != null && concurrentIds.size() == 1,
+                    "Exactly one concurrent booking must persist");
+            require(appointmentDao.cancelDoctorAppointment(
+                            Integer.parseInt(concurrentIds.get(0)), doctorId),
+                    "Concurrent test appointment cleanup failed");
+        } finally {
+            start.countDown();
+            pool.shutdownNow();
+        }
+
+
         RoomDAO rooms = new RoomDAO();
         rooms.insertRoom(new Room(7001, "Cardiology"));
         rooms.updateRoomDepartment(new Room(7001, "Neurology"));
