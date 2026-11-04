@@ -164,7 +164,7 @@ public final class SecureAccounts {
 
     /**
      * Explicit credential enrollment for existing accounts. A previously set password
-     * is never overwritten by this bootstrap command.
+     * using the current PBKDF2 format is never overwritten by this bootstrap command.
      */
     static boolean enrollExisting(Kind kind, int internalId, String nationalId, char[] password) {
         if (internalId <= 0 || !validNationalId(nationalId)) return false;
@@ -172,7 +172,7 @@ public final class SecureAccounts {
         String salt = SecurityManager.generateSalt();
         String hash = SecurityManager.hashPassword(password, salt);
         String sql = "UPDATE " + table(kind) + " SET National_ID=?, password_hash=?, salt=?, "
-                + "Failed_Attempts=0, Locked_Until=NULL WHERE SSN=? AND password_hash IS NULL";
+                + "Failed_Attempts=0, Locked_Until=NULL WHERE SSN=? AND (password_hash IS NULL OR password_hash NOT LIKE 'pbkdf2-sha256$600000$%')";
         try (Connection con = DatabaseManager.getConnection();
              PreparedStatement stmt = con.prepareStatement(sql)) {
             stmt.setString(1, nationalId);
