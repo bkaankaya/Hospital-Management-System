@@ -70,6 +70,7 @@ public class MainFrame extends JFrame {
         setTitle(APP_TITLE);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(DEFAULT_WIDTH, DEFAULT_HEIGHT);
+        setMinimumSize(new Dimension(800, 560));
         setLocationRelativeTo(null);
 
         cardLayout = new CardLayout();
@@ -265,6 +266,7 @@ public class MainFrame extends JFrame {
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
+            ModernSwingUtils.setModernLookAndFeel();
             new MainFrame().setVisible(true);
         });
     }

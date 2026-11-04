@@ -2,38 +2,28 @@ package db;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.*;
 
 public class InsertMenuPanel extends JPanel {
-    private MainFrame mainFrame;
-
     public InsertMenuPanel(MainFrame mainFrame) {
-        this.mainFrame = mainFrame;
-        setLayout(null);
-
-        JLabel label = new JLabel("INSERT MENU");
-        label.setFont(new Font("Trebuchet MS", Font.BOLD, 20));
-        label.setBounds(30, 30, 200, 30);
-        add(label);
-
-        JButton insertPatientButton = new JButton("Insert Patient");
-        insertPatientButton.setBounds(200, 150, 200, 50);
-        add(insertPatientButton);
-        insertPatientButton.addActionListener(e -> mainFrame.showPanel(MainFrame.INSERT_PATIENT_PANEL));
-
-        JButton insertDoctorButton = new JButton("Insert Doctor");
-        insertDoctorButton.setBounds(200, 250, 200, 50);
-        add(insertDoctorButton);
-        insertDoctorButton.addActionListener(e -> mainFrame.showPanel(MainFrame.INSERT_DOCTOR_PANEL));
-
-        JButton searchButton = new JButton("Search Patients");
-        searchButton.setBounds(200, 350, 200, 45);
-        add(searchButton);
-        searchButton.addActionListener(e -> mainFrame.showPanel(MainFrame.PATIENT_NAME_LIKE_PANEL));
-
-        JButton statisticsButton = new JButton("Medicine Statistics");
-        statisticsButton.setBounds(200, 410, 200, 45);
-        add(statisticsButton);
-        statisticsButton.addActionListener(e -> mainFrame.showPanel(MainFrame.MEDICINE_STATS_PANEL));
+        setLayout(new BorderLayout());
+        JPanel actions = DesktopStyles.actionList();
+        JButton patient = DesktopStyles.button("Register a patient", true);
+        patient.addActionListener(e -> mainFrame.showPanel(MainFrame.INSERT_PATIENT_PANEL));
+        JButton doctor = DesktopStyles.button("Register a doctor", false);
+        doctor.addActionListener(e -> mainFrame.showPanel(MainFrame.INSERT_DOCTOR_PANEL));
+        JButton search = DesktopStyles.button("Search patients", false);
+        search.addActionListener(e -> mainFrame.showPanel(MainFrame.PATIENT_NAME_LIKE_PANEL));
+        JButton statistics = DesktopStyles.button("Medicine statistics", false);
+        statistics.addActionListener(e -> mainFrame.showPanel(MainFrame.MEDICINE_STATS_PANEL));
+        JButton logout = DesktopStyles.button("Sign out", false);
+        logout.addActionListener(e -> mainFrame.showPanel(MainFrame.LOGIN_PANEL));
+        actions.add(patient);
+        actions.add(doctor);
+        actions.add(search);
+        actions.add(statistics);
+        actions.add(logout);
+        add(DesktopStyles.page("Administration",
+                "Manage local demo records • Only accessible after administrator login",
+                actions), BorderLayout.CENTER);
     }
 }

@@ -47,3 +47,8 @@ jobs:
           mkdir -p build/integration-tests
           javac --release 11 -encoding UTF-8 -cp target/hospital-management-system-2.0.0.jar -d build/integration-tests test/db/IntegrationSmokeTest.java
           java -Djava.awt.headless=true -cp target/hospital-management-system-2.0.0.jar:build/integration-tests db.IntegrationSmokeTest
+      - name: Compile and render the real Swing application under Xvfb
+        run: |
+          command -v xvfb-run
+          javac --release 11 -encoding UTF-8 -cp target/hospital-management-system-2.0.0.jar -d build/integration-tests test/db/GuiSmokeTest.java
+          xvfb-run -a java -Djava.awt.headless=false -cp target/hospital-management-system-2.0.0.jar:build/integration-tests db.GuiSmokeTest

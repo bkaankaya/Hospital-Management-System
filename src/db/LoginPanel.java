@@ -2,147 +2,158 @@ package db;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.*;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.Arrays;
+import java.util.concurrent.ExecutionException;
 
+/**
+ * Responsive login for the existing legacy identity model.
+ * Patient/doctor identity fields are NOT password authentication.
+ * Use only with synthetic data until a credential migration is designed.
+ */
 public class LoginPanel extends JPanel {
-    private MainFrame mainFrame;
+    private final MainFrame mainFrame;
+    private final JTabbedPane tabs = new JTabbedPane();
 
     public LoginPanel(MainFrame mainFrame) {
         this.mainFrame = mainFrame;
         setLayout(new BorderLayout());
+        tabs.setFont(new Font("SansSerif", Font.BOLD, 14));
+        tabs.addTab("Patient", identityTab(false));
+        tabs.addTab("Doctor", identityTab(true));
+        tabs.addTab("Administrator", adminTab());
+        add(DesktopStyles.page("Hospital Management System",
+                "Select your role to continue • Local demonstration", tabs), BorderLayout.CENTER);
+    }
 
-        JTabbedPane tabbedPane = new JTabbedPane();
+    private JPanel identityTab(boolean doctor) {
+        JPanel form = new JPanel(new GridBagLayout());
+        form.setOpaque(false);
+        JTextField id = DesktopStyles.textField("Legacy numeric ID");
+        JTextField first = DesktopStyles.textField("First name");
+        JTextField last = DesktopStyles.textField("Last name");
+        DesktopStyles.row(form, 0, "Numeric ID", id);
+        DesktopStyles.row(form, 1, "First name", first);
+        DesktopStyles.row(form, 2, "Last name", last);
 
-        // --- Patient Login ---
-        JPanel patientPanel = new JPanel();
-        patientPanel.setLayout(null);
-        JLabel patientSSNLabel = new JLabel("SSN:");
-        patientSSNLabel.setBounds(30, 30, 80, 25);
-        patientPanel.add(patientSSNLabel);
-        JTextField patientSSNField = new JTextField();
-        patientSSNField.setBounds(120, 30, 150, 25);
-        patientPanel.add(patientSSNField);
-        JLabel patientNameLabel = new JLabel("Name:");
-        patientNameLabel.setBounds(30, 70, 80, 25);
-        patientPanel.add(patientNameLabel);
-        JTextField patientNameField = new JTextField();
-        patientNameField.setBounds(120, 70, 150, 25);
-        patientPanel.add(patientNameField);
-        JLabel patientSurnameLabel = new JLabel("Surname:");
-        patientSurnameLabel.setBounds(30, 110, 80, 25);
-        patientPanel.add(patientSurnameLabel);
-        JTextField patientSurnameField = new JTextField();
-        patientSurnameField.setBounds(120, 110, 150, 25);
-        patientPanel.add(patientSurnameField);
-        JButton patientLoginButton = new JButton("Login");
-        patientLoginButton.setBounds(120, 150, 100, 30);
-        patientPanel.add(patientLoginButton);
-        patientLoginButton.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                if (patientSSNField.getText().isEmpty() || patientNameField.getText().isEmpty()
-                        || patientSurnameField.getText().isEmpty()) {
-                    JOptionPane.showMessageDialog(null, "Please fill in all fields!", "Warning",
-                            JOptionPane.WARNING_MESSAGE);
-                } else {
-                    try {
-                        int ssn = Integer.parseInt(patientSSNField.getText().trim());
-                        String name = patientNameField.getText().trim();
-                        String surname = patientSurnameField.getText().trim();
-                        PatientDAO dao = new PatientDAO();
-                        if (dao.checkPatientLogin(ssn, name, surname)) {
-                            mainFrame.setCurrentPatientSsn(ssn);
-                            mainFrame.showPanel(MainFrame.PATIENT_DASHBOARD_PANEL);
-                        } else {
-                            JOptionPane.showMessageDialog(null, "Invalid Patient SSN, Name, or Surname!", "Error", JOptionPane.ERROR_MESSAGE);
-                        }
-                    } catch (NumberFormatException ex) {
-                        JOptionPane.showMessageDialog(null, "SSN must be a number!", "Error", JOptionPane.ERROR_MESSAGE);
-                    }
-                }
-            }
-        });
+        JPanel section = new JPanel(new BorderLayout(0, 14));
+        section.setOpaque(false);
+        JLabel help = new JLabel("Legacy local identity lookup; no password protection.");
+        help.setForeground(DesktopStyles.MUTED);
+        section.add(help, BorderLayout.NORTH);
+        section.add(form, BorderLayout.CENTER);
 
-        // --- Doctor Login ---
-        JPanel doctorPanel = new JPanel();
-        doctorPanel.setLayout(null);
-        JLabel doctorSSNLabel = new JLabel("SSN:");
-        doctorSSNLabel.setBounds(30, 30, 80, 25);
-        doctorPanel.add(doctorSSNLabel);
-        JTextField doctorSSNField = new JTextField();
-        doctorSSNField.setBounds(120, 30, 150, 25);
-        doctorPanel.add(doctorSSNField);
-        JLabel doctorNameLabel = new JLabel("Name:");
-        doctorNameLabel.setBounds(30, 70, 80, 25);
-        doctorPanel.add(doctorNameLabel);
-        JTextField doctorNameField = new JTextField();
-        doctorNameField.setBounds(120, 70, 150, 25);
-        doctorPanel.add(doctorNameField);
-        JLabel doctorSurnameLabel = new JLabel("Surname:");
-        doctorSurnameLabel.setBounds(30, 110, 80, 25);
-        doctorPanel.add(doctorSurnameLabel);
-        JTextField doctorSurnameField = new JTextField();
-        doctorSurnameField.setBounds(120, 110, 150, 25);
-        doctorPanel.add(doctorSurnameField);
-        JButton doctorLoginButton = new JButton("Login");
-        doctorLoginButton.setBounds(120, 150, 100, 30);
-        doctorPanel.add(doctorLoginButton);
-        doctorLoginButton.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                if (doctorSSNField.getText().isEmpty() || doctorNameField.getText().isEmpty()
-                        || doctorSurnameField.getText().isEmpty()) {
-                    JOptionPane.showMessageDialog(null, "Please fill in all fields!", "Warning",
-                            JOptionPane.WARNING_MESSAGE);
-                } else {
-                    try {
-                        int ssn = Integer.parseInt(doctorSSNField.getText().trim());
-                        String name = doctorNameField.getText().trim();
-                        String surname = doctorSurnameField.getText().trim();
-                        DoctorDAO dao = new DoctorDAO();
-                        if (dao.checkDoctorLogin(ssn, name, surname)) {
-                            mainFrame.setCurrentDoctorSsn(ssn);
-                            mainFrame.showPanel(MainFrame.DOCTOR_DASHBOARD_PANEL);
-                        } else {
-                            JOptionPane.showMessageDialog(null, "Invalid Doctor SSN, Name, or Surname!", "Error", JOptionPane.ERROR_MESSAGE);
-                        }
-                    } catch (NumberFormatException ex) {
-                        JOptionPane.showMessageDialog(null, "SSN must be a number!", "Error", JOptionPane.ERROR_MESSAGE);
-                    }
-                }
-            }
-        });
+        JPanel footer = new JPanel(new BorderLayout(0, 9));
+        footer.setOpaque(false);
+        JButton submit = DesktopStyles.button(doctor ? "Open doctor workspace" : "Open patient workspace", true);
+        JLabel status = new JLabel(" ");
+        status.setForeground(DesktopStyles.MUTED);
+        footer.add(submit, BorderLayout.NORTH);
+        footer.add(status, BorderLayout.SOUTH);
+        section.add(footer, BorderLayout.SOUTH);
 
-        // Admin setup is opt-in and is never enabled with a hard-coded password.
-        JPanel adminPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 30));
-        JPasswordField adminPassword = new JPasswordField(18);
-        JButton adminButton = new JButton("Administrator Login");
-        adminPanel.add(new JLabel("Local administrator password:"));
-        adminPanel.add(adminPassword);
-        adminPanel.add(adminButton);
-        adminButton.addActionListener(e -> {
-            String configured = System.getenv("HOSPITAL_ADMIN_PASSWORD");
-            char[] suppliedChars = adminPassword.getPassword();
-            byte[] supplied = new String(suppliedChars).getBytes(java.nio.charset.StandardCharsets.UTF_8);
-            java.util.Arrays.fill(suppliedChars, '\0');
-            if (configured == null || configured.length() < 12) {
-                JOptionPane.showMessageDialog(this,
-                    "Set a 12+ character HOSPITAL_ADMIN_PASSWORD in your local environment first.",
-                    "Admin login disabled", JOptionPane.WARNING_MESSAGE);
+        submit.addActionListener(event -> {
+            final int numericId;
+            try {
+                numericId = Integer.parseInt(id.getText().trim());
+                if (numericId <= 0) throw new NumberFormatException("Non-positive ID");
+            } catch (NumberFormatException ex) {
+                status.setText("Enter a positive numeric ID (32-bit legacy format).");
                 return;
             }
-            byte[] expected = configured.getBytes(java.nio.charset.StandardCharsets.UTF_8);
-            if (java.security.MessageDigest.isEqual(expected, supplied)) {
-                adminPassword.setText("");
+            String firstName = first.getText().trim();
+            String lastName = last.getText().trim();
+            if (firstName.isEmpty() || lastName.isEmpty()) {
+                status.setText("First and last name are required.");
+                return;
+            }
+            submit.setEnabled(false);
+            status.setText("Checking the local database...");
+            new SwingWorker<Boolean, Void>() {
+                @Override
+                protected Boolean doInBackground() {
+                    return doctor
+                            ? new DoctorDAO().checkDoctorLogin(numericId, firstName, lastName)
+                            : new PatientDAO().checkPatientLogin(numericId, firstName, lastName);
+                }
+
+                @Override
+                protected void done() {
+                    submit.setEnabled(true);
+                    try {
+                        if (!get()) {
+                            status.setText("No matching record, or the database is unavailable.");
+                            return;
+                        }
+                        if (doctor) {
+                            mainFrame.setCurrentDoctorSsn(numericId);
+                            mainFrame.showPanel(MainFrame.DOCTOR_DASHBOARD_PANEL);
+                        } else {
+                            mainFrame.setCurrentPatientSsn(numericId);
+                            mainFrame.showPanel(MainFrame.PATIENT_DASHBOARD_PANEL);
+                        }
+                        status.setText(" ");
+                    } catch (InterruptedException ex) {
+                        Thread.currentThread().interrupt();
+                        status.setText("Login check interrupted.");
+                    } catch (ExecutionException ex) {
+                        status.setText("Local database check failed.");
+                    }
+                }
+            }.execute();
+        });
+        return section;
+    }
+
+    private JPanel adminTab() {
+        JPanel form = new JPanel(new GridBagLayout());
+        form.setOpaque(false);
+        JPasswordField password = new JPasswordField(20);
+        DesktopStyles.styleInput(password, "Local administrator password");
+        DesktopStyles.row(form, 0, "Admin password", password);
+        JButton submit = DesktopStyles.button("Open administration", true);
+        JLabel status = new JLabel("Set HOSPITAL_ADMIN_PASSWORD (12+ characters) locally.");
+        status.setForeground(DesktopStyles.MUTED);
+
+        JPanel footer = new JPanel(new BorderLayout(0, 10));
+        footer.setOpaque(false);
+        footer.add(submit, BorderLayout.NORTH);
+        footer.add(status, BorderLayout.SOUTH);
+        JPanel section = new JPanel(new BorderLayout(0, 18));
+        section.setOpaque(false);
+        section.add(form, BorderLayout.CENTER);
+        section.add(footer, BorderLayout.SOUTH);
+
+        submit.addActionListener(event -> {
+            char[] entered = password.getPassword();
+            try {
+                String configured = System.getenv("HOSPITAL_ADMIN_PASSWORD");
+                if (configured == null || configured.length() < 12) {
+                    status.setText("Admin login disabled. Configure a strong local password.");
+                    return;
+                }
+                byte[] suppliedBytes = new String(entered).getBytes(StandardCharsets.UTF_8);
+                byte[] expectedBytes = configured.getBytes(StandardCharsets.UTF_8);
+                boolean valid = MessageDigest.isEqual(expectedBytes, suppliedBytes);
+                Arrays.fill(suppliedBytes, (byte) 0);
+                Arrays.fill(expectedBytes, (byte) 0);
+                if (!valid) {
+                    status.setText("Incorrect administrator password.");
+                    return;
+                }
+                password.setText("");
+                status.setText(" ");
                 mainFrame.setAdminAuthenticated();
                 mainFrame.showPanel(MainFrame.INSERT_MENU_PANEL);
-            } else {
-                JOptionPane.showMessageDialog(this, "Invalid administrator password.",
-                        "Login denied", JOptionPane.ERROR_MESSAGE);
+            } finally {
+                Arrays.fill(entered, '\0');
             }
         });
+        return section;
+    }
 
-        tabbedPane.addTab("Patient Login", patientPanel);
-        tabbedPane.addTab("Doctor Login", doctorPanel);
-        tabbedPane.addTab("Administrator", adminPanel);
-        add(tabbedPane, BorderLayout.CENTER);
+    public int getRoleTabCount() {
+        return tabs.getTabCount();
     }
 }
