@@ -52,3 +52,13 @@ jobs:
           command -v xvfb-run
           javac --release 11 -encoding UTF-8 -cp target/hospital-management-system-2.0.0.jar -d build/integration-tests test/db/GuiSmokeTest.java
           xvfb-run -a java -Djava.awt.headless=false -cp target/hospital-management-system-2.0.0.jar:build/integration-tests db.GuiSmokeTest
+          javac --release 11 -encoding UTF-8 -cp target/hospital-management-system-2.0.0.jar -d build/integration-tests test/db/GuiWorkflowTest.java
+          xvfb-run -a java -Djava.awt.headless=false -cp target/hospital-management-system-2.0.0.jar:build/integration-tests db.GuiWorkflowTest
+      - name: Preserve Java Swing GUI screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hospital-swing-gui-preview
+          path: build/screenshots/*.png
+          retention-days: 3
+          if-no-files-found: warn
