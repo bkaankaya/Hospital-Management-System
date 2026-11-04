@@ -191,25 +191,12 @@ public class DoctorDAO {
         }
     }
 
-	public boolean checkDoctorLogin(int doc_SSN, String name, String surname) 
+	/** Disabled: identity-only authentication is insecure. Use SecureAccounts.authenticate. */
+    @Deprecated
+    public boolean checkDoctorLogin(int doc_SSN, String name, String surname) 
 	{
-		try (Connection con = DatabaseManager.getConnection();
-			PreparedStatement pst = con.prepareStatement("SELECT * FROM Doctor where SSN=? and name=? and surname=?") ){
-			pst.setInt(1, doc_SSN);
-			pst.setString(2, name);
-			pst.setString(3, surname);
-		try	(ResultSet set = pst.executeQuery() ){
-			if(set.next() )
-				{
-					return true;
-				}
-		}
-		}catch (SQLException e) {
-			System.out.println("Sql Error.");
-			e.printStackTrace(System.out);
-		}
-		return false;		
-	}
+        return false;
+    }
 
 }
 

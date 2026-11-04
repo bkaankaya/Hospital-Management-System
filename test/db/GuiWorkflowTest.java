@@ -102,12 +102,14 @@ public final class GuiWorkflowTest {
             LoginPanel login = find(frame, LoginPanel.class);
             check(login != null && login.getRoleTabCount() == 3,
                     "Login screen is missing its roles");
-            check(field("Legacy numeric ID") != null, "Numeric ID field missing");
-            check(field("First name") != null, "First name field missing");
-            check(field("Last name") != null, "Last name field missing");
-            field("Legacy numeric ID").setText("1002002");
-            field("First name").setText("Anna");
-            field("Last name").setText("Testpatient");
+            check(field("Account ID") != null, "Account ID field missing");
+            check(find(login, JPasswordField.class) != null, "Password field missing");
+            
+            field("Account ID").setText("90000000001");
+            Container patientForm = (Container) find(login, JTabbedPane.class).getSelectedComponent();
+            JPasswordField patientPassword = find(patientForm, JPasswordField.class);
+            check(patientPassword != null, "Patient password input missing");
+            patientPassword.setText("DemoSecurePassword123!");
             JButton loginButton = button(login, "Open patient workspace");
             check(loginButton != null, "Patient login button missing");
             loginButton.doClick();
@@ -149,14 +151,11 @@ public final class GuiWorkflowTest {
                 check(tabs != null, "Role tabs missing");
                 tabs.setSelectedIndex(1);
                 Container doctorForm = (Container) tabs.getSelectedComponent();
-                JTextField numeric = searchField(doctorForm, "Legacy numeric ID");
-                JTextField first = searchField(doctorForm, "First name");
-                JTextField last = searchField(doctorForm, "Last name");
-                check(numeric != null && first != null && last != null,
-                        "Doctor identity controls missing");
-                numeric.setText("1001001");
-                first.setText("Ada");
-                last.setText("Lovelace");
+                JTextField numeric = searchField(doctorForm, "Account ID");
+                JPasswordField doctorPassword = find(doctorForm, JPasswordField.class);
+                check(numeric != null && doctorPassword != null, "Doctor credentials missing");
+                numeric.setText("90000000002");
+                doctorPassword.setText("DemoSecurePassword123!");
                 JButton doctorLogin = button(find(frame, LoginPanel.class),
                         "Open doctor workspace");
                 check(doctorLogin != null, "Doctor login button missing");

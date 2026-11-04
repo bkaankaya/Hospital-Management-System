@@ -7,48 +7,46 @@ import java.security.MessageDigest;
 import java.util.Arrays;
 import java.util.concurrent.ExecutionException;
 
-/**
- * Responsive login for the existing legacy identity model.
- * Patient/doctor identity fields are NOT password authentication.
- * Use only with synthetic data until a credential migration is designed.
- */
+/** Password-only authentication for patients, doctors and local administrators. */
 public class LoginPanel extends JPanel {
     private final MainFrame mainFrame;
     private final JTabbedPane tabs = new JTabbedPane();
+    private int adminFailures;
+    private long adminBlockedUntil;
 
     public LoginPanel(MainFrame mainFrame) {
         this.mainFrame = mainFrame;
         setLayout(new BorderLayout());
         tabs.setFont(new Font("SansSerif", Font.BOLD, 14));
         tabs.setBackground(Color.WHITE);
-        tabs.addTab("Patient", identityTab(false));
-        tabs.addTab("Doctor", identityTab(true));
+        tabs.addTab("Patient", identityTab(SecureAccounts.Kind.PATIENT));
+        tabs.addTab("Doctor", identityTab(SecureAccounts.Kind.DOCTOR));
         tabs.addTab("Administrator", adminTab());
         add(DesktopStyles.page("Hospital Management System",
-                "Select your role to continue • Local demonstration", tabs), BorderLayout.CENTER);
+                "Sign in with your 11-digit identifier and password", tabs), BorderLayout.CENTER);
     }
 
-    private JPanel identityTab(boolean doctor) {
+    private JPanel identityTab(SecureAccounts.Kind role) {
         JPanel form = new JPanel(new GridBagLayout());
         form.setOpaque(false);
-        JTextField id = DesktopStyles.textField("Legacy numeric ID");
-        JTextField first = DesktopStyles.textField("First name");
-        JTextField last = DesktopStyles.textField("Last name");
-        DesktopStyles.row(form, 0, "Numeric ID", id);
-        DesktopStyles.row(form, 1, "First name", first);
-        DesktopStyles.row(form, 2, "Last name", last);
+        JTextField account = DesktopStyles.textField("Account ID");
+        JPasswordField password = new JPasswordField(20);
+        DesktopStyles.styleInput(password, "Account password");
+        DesktopStyles.row(form, 0, "11-digit ID or legacy account ID", account);
+        DesktopStyles.row(form, 1, "Password", password);
 
         JPanel section = new JPanel(new BorderLayout(0, 14));
-        section.setBackground(Color.WHITE);
         section.setOpaque(true);
-        JLabel help = new JLabel("Legacy local identity lookup; no password protection.");
+        section.setBackground(Color.WHITE);
+        JLabel help = new JLabel("Passwords must be issued by the administrator.");
         help.setForeground(DesktopStyles.MUTED);
         section.add(help, BorderLayout.NORTH);
         section.add(form, BorderLayout.CENTER);
 
         JPanel footer = new JPanel(new BorderLayout(0, 9));
         footer.setOpaque(false);
-        JButton submit = DesktopStyles.button(doctor ? "Open doctor workspace" : "Open patient workspace", true);
+        JButton submit = DesktopStyles.button(role == SecureAccounts.Kind.PATIENT
+                ? "Open patient workspace" : "Open doctor workspace", true);
         JLabel status = new JLabel(" ");
         status.setForeground(DesktopStyles.MUTED);
         footer.add(submit, BorderLayout.NORTH);
@@ -56,51 +54,43 @@ public class LoginPanel extends JPanel {
         section.add(footer, BorderLayout.SOUTH);
 
         submit.addActionListener(event -> {
-            final int numericId;
-            try {
-                numericId = Integer.parseInt(id.getText().trim());
-                if (numericId <= 0) throw new NumberFormatException("Non-positive ID");
-            } catch (NumberFormatException ex) {
-                status.setText("Enter a positive numeric ID (32-bit legacy format).");
-                return;
-            }
-            String firstName = first.getText().trim();
-            String lastName = last.getText().trim();
-            if (firstName.isEmpty() || lastName.isEmpty()) {
-                status.setText("First and last name are required.");
+            final String id = account.getText().trim();
+            final char[] entered = password.getPassword();
+            password.setText("");
+            if (id.isEmpty() || entered.length == 0) {
+                Arrays.fill(entered, '\0');
+                status.setText("Enter your account ID and password.");
                 return;
             }
             submit.setEnabled(false);
-            status.setText("Checking the local database...");
-            new SwingWorker<Boolean, Void>() {
-                @Override
-                protected Boolean doInBackground() {
-                    return doctor
-                            ? new DoctorDAO().checkDoctorLogin(numericId, firstName, lastName)
-                            : new PatientDAO().checkPatientLogin(numericId, firstName, lastName);
+            status.setText("Checking credentials...");
+            new SwingWorker<Integer, Void>() {
+                @Override protected Integer doInBackground() {
+                    try { return SecureAccounts.authenticate(role, id, entered); }
+                    finally { Arrays.fill(entered, '\0'); }
                 }
-
-                @Override
-                protected void done() {
+                @Override protected void done() {
                     submit.setEnabled(true);
                     try {
-                        if (!get()) {
-                            status.setText("No matching record, or the database is unavailable.");
+                        int internalId = get();
+                        if (internalId <= 0) {
+                            status.setText("Sign-in failed. Check credentials or contact the administrator.");
                             return;
                         }
-                        if (doctor) {
-                            mainFrame.setCurrentDoctorSsn(numericId);
-                            mainFrame.showPanel(MainFrame.DOCTOR_DASHBOARD_PANEL);
-                        } else {
-                            mainFrame.setCurrentPatientSsn(numericId);
+                        if (role == SecureAccounts.Kind.PATIENT) {
+                            mainFrame.setCurrentPatientSsn(internalId);
                             mainFrame.showPanel(MainFrame.PATIENT_DASHBOARD_PANEL);
+                        } else {
+                            mainFrame.setCurrentDoctorSsn(internalId);
+                            mainFrame.showPanel(MainFrame.DOCTOR_DASHBOARD_PANEL);
                         }
+                        account.setText("");
                         status.setText(" ");
                     } catch (InterruptedException ex) {
                         Thread.currentThread().interrupt();
-                        status.setText("Login check interrupted.");
+                        status.setText("Sign-in interrupted.");
                     } catch (ExecutionException ex) {
-                        status.setText("Local database check failed.");
+                        status.setText("Sign-in unavailable. Contact the administrator.");
                     }
                 }
             }.execute();
@@ -115,48 +105,51 @@ public class LoginPanel extends JPanel {
         DesktopStyles.styleInput(password, "Local administrator password");
         DesktopStyles.row(form, 0, "Admin password", password);
         JButton submit = DesktopStyles.button("Open administration", true);
-        JLabel status = new JLabel("Set HOSPITAL_ADMIN_PASSWORD (12+ characters) locally.");
+        JLabel status = new JLabel("The administrator password is set locally, not in Git.");
         status.setForeground(DesktopStyles.MUTED);
-
         JPanel footer = new JPanel(new BorderLayout(0, 10));
         footer.setOpaque(false);
         footer.add(submit, BorderLayout.NORTH);
         footer.add(status, BorderLayout.SOUTH);
         JPanel section = new JPanel(new BorderLayout(0, 18));
-        section.setBackground(Color.WHITE);
         section.setOpaque(true);
+        section.setBackground(Color.WHITE);
         section.add(form, BorderLayout.CENTER);
         section.add(footer, BorderLayout.SOUTH);
-
         submit.addActionListener(event -> {
             char[] entered = password.getPassword();
+            password.setText("");
             try {
+                if (System.currentTimeMillis() < adminBlockedUntil) {
+                    status.setText("Too many attempts. Try again later.");
+                    return;
+                }
                 String configured = System.getenv("HOSPITAL_ADMIN_PASSWORD");
                 if (configured == null || configured.length() < 12) {
-                    status.setText("Admin login disabled. Configure a strong local password.");
+                    status.setText("Administrator login is not configured.");
                     return;
                 }
-                byte[] suppliedBytes = new String(entered).getBytes(StandardCharsets.UTF_8);
-                byte[] expectedBytes = configured.getBytes(StandardCharsets.UTF_8);
-                boolean valid = MessageDigest.isEqual(expectedBytes, suppliedBytes);
-                Arrays.fill(suppliedBytes, (byte) 0);
-                Arrays.fill(expectedBytes, (byte) 0);
-                if (!valid) {
-                    status.setText("Incorrect administrator password.");
+                byte[] a = new String(entered).getBytes(StandardCharsets.UTF_8);
+                byte[] b = configured.getBytes(StandardCharsets.UTF_8);
+                boolean correct = MessageDigest.isEqual(a, b);
+                Arrays.fill(a, (byte) 0);
+                Arrays.fill(b, (byte) 0);
+                if (!correct) {
+                    if (++adminFailures >= 5) {
+                        adminBlockedUntil = System.currentTimeMillis() + 15 * 60_000L;
+                        adminFailures = 0;
+                    }
+                    status.setText("Sign-in failed.");
                     return;
                 }
-                password.setText("");
-                status.setText(" ");
+                adminFailures = 0;
                 mainFrame.setAdminAuthenticated();
                 mainFrame.showPanel(MainFrame.INSERT_MENU_PANEL);
-            } finally {
-                Arrays.fill(entered, '\0');
-            }
+                status.setText(" ");
+            } finally { Arrays.fill(entered, '\0'); }
         });
         return section;
     }
 
-    public int getRoleTabCount() {
-        return tabs.getTabCount();
-    }
+    public int getRoleTabCount() { return tabs.getTabCount(); }
 }

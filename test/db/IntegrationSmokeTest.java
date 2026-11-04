@@ -24,12 +24,17 @@ public final class IntegrationSmokeTest {
 
         DoctorDAO doctors = new DoctorDAO();
         PatientDAO patients = new PatientDAO();
-        require(doctors.tryInsertDoctor(doctor), "Doctor insert failed");
-        require(patients.tryInsertPatient(patient), "Patient insert failed");
-        require(!doctors.tryInsertDoctor(doctor), "Duplicate doctor insert should fail");
-        require(!patients.tryInsertPatient(patient), "Duplicate patient insert should fail");
-        require(doctors.checkDoctorLogin(doctorId, "Ada", "Lovelace"), "Doctor lookup failed");
-        require(patients.checkPatientLogin(patientId, "Anna", "Testpatient"), "Patient lookup failed");
+        char[] demoPassword = "DemoSecurePassword123!".toCharArray();
+        require(SecureAccounts.registerDoctor(doctor, "90000000002", demoPassword), "Doctor secure registration failed");
+        require(SecureAccounts.registerPatient(patient, "90000000001", demoPassword), "Patient secure registration failed");
+        require(!SecureAccounts.registerDoctor(doctor, "90000000002", demoPassword), "Duplicate doctor insert should fail");
+        require(!SecureAccounts.registerPatient(patient, "90000000001", demoPassword), "Duplicate patient insert should fail");
+        require(!doctors.checkDoctorLogin(doctorId, "Ada", "Lovelace"), "Legacy passwordless doctor login must fail");
+        require(!patients.checkPatientLogin(patientId, "Anna", "Testpatient"), "Legacy passwordless patient login must fail");
+        require(SecureAccounts.authenticate(SecureAccounts.Kind.DOCTOR, "90000000002", demoPassword) == doctorId, "Doctor credential login failed");
+        require(SecureAccounts.authenticate(SecureAccounts.Kind.PATIENT, "90000000001", demoPassword) == patientId, "Patient credential login failed");
+        require(SecureAccounts.authenticate(SecureAccounts.Kind.PATIENT, "90000000001", "wrong".toCharArray()) == 0, "Wrong password accepted");
+        java.util.Arrays.fill(demoPassword, '\0');
         require(doctors.tryUpdateAddress(doctorId, "Updated doctor address"), "Doctor address not updated");
         require(patients.tryUpdateAddress(patientId, "Updated patient address"), "Patient address not updated");
         require(patients.patientNameLike("Anna") != null &&
