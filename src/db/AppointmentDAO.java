@@ -122,6 +122,58 @@ public class AppointmentDAO {
 			return null;
 	}
 
+    /**
+     * Patient-scoped appointment list, bounded for a usable Swing table.
+     * Never accepts raw SQL fragments or returns national identifiers.
+     */
+    public java.util.List<String[]> getPatientUpcomingAppointments(int patientId) {
+        if (patientId <= 0) return java.util.Collections.emptyList();
+        String sql = "SELECT a.app_id, a.Date, a.Time, "
+                + "CONCAT(d.Name, ' ', d.Surname), d.Department_Name "
+                + "FROM Appointment a JOIN Doctor d ON d.SSN=a.Doctor_SSN "
+                + "WHERE a.Patient_SSN=? AND a.Date >= CURRENT_DATE() "
+                + "ORDER BY a.Date, a.Time LIMIT 100";
+        java.util.List<String[]> result = new java.util.ArrayList<>();
+        try (Connection connection = DatabaseManager.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setInt(1, patientId);
+            try (ResultSet rs = statement.executeQuery()) {
+                while (rs.next()) {
+                    result.add(new String[] {rs.getString(1), rs.getString(2), rs.getString(3),
+                            rs.getString(4), rs.getString(5)});
+                }
+            }
+            return result;
+        } catch (SQLException ex) {
+            System.err.println("Could not list patient appointments");
+            return null;
+        }
+    }
+
+    public java.util.List<String[]> getDoctorUpcomingAppointments(int doctorId) {
+        if (doctorId <= 0) return java.util.Collections.emptyList();
+        String sql = "SELECT a.app_id, a.Date, a.Time, "
+                + "CONCAT(p.Name, ' ', p.Surname) FROM Appointment a "
+                + "JOIN Patient p ON p.SSN=a.Patient_SSN "
+                + "WHERE a.Doctor_SSN=? AND a.Date>=CURRENT_DATE() "
+                + "ORDER BY a.Date, a.Time LIMIT 100";
+        java.util.List<String[]> result = new java.util.ArrayList<>();
+        try (Connection connection = DatabaseManager.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setInt(1, doctorId);
+            try (ResultSet rs = statement.executeQuery()) {
+                while (rs.next()) {
+                    result.add(new String[] {rs.getString(1), rs.getString(2), rs.getString(3),
+                            rs.getString(4)});
+                }
+            }
+            return result;
+        } catch (SQLException ex) {
+            System.err.println("Could not list doctor appointments");
+            return null;
+        }
+    }
+
 	// returns today and next 13 days
 	public ArrayList<String> getDateList() 
 	{

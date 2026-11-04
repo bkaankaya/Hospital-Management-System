@@ -16,6 +16,7 @@ public final class AccessPolicy {
         switch (role) {
             case PATIENT:
                 return MainFrame.PATIENT_DASHBOARD_PANEL.equals(panelName)
+                        || MainFrame.PATIENT_APPOINTMENTS_PANEL.equals(panelName)
                         || MainFrame.PATIENT_UPDATE_PANEL.equals(panelName)
                         || MainFrame.APPOINTMENT_PANEL.equals(panelName);
             case DOCTOR:

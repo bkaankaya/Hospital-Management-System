@@ -42,6 +42,10 @@ public final class SmokeTest {
                 "Login must be accessible before authentication");
         require(!AccessPolicy.canOpen(AccessPolicy.Role.NONE, MainFrame.INSERT_MENU_PANEL),
                 "Anonymous access to admin insert menu must be denied");
+        require(AccessPolicy.canOpen(AccessPolicy.Role.PATIENT, MainFrame.PATIENT_APPOINTMENTS_PANEL),
+                "Patients must be able to view their own upcoming appointments");
+        require(!AccessPolicy.canOpen(AccessPolicy.Role.DOCTOR, MainFrame.PATIENT_APPOINTMENTS_PANEL),
+                "Doctors must not open the patient schedule directly");
         require(AccessPolicy.canOpen(AccessPolicy.Role.PATIENT, MainFrame.APPOINTMENT_PANEL),
                 "Patients must retain the appointment flow");
         require(!AccessPolicy.canOpen(AccessPolicy.Role.PATIENT, MainFrame.CANCEL_APPOINTMENT_PANEL),

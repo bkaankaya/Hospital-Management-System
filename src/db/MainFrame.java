@@ -21,6 +21,7 @@ public class MainFrame extends JFrame {
     public static final String PATIENT_DASHBOARD_PANEL = "PatientDashboardPanel";
     public static final String PATIENT_UPDATE_PANEL = "PatientUpdatePanel";
     public static final String APPOINTMENT_PANEL = "AppointmentPanel";
+    public static final String PATIENT_APPOINTMENTS_PANEL = "PatientAppointmentsPanel";
     public static final String PATIENT_NAME_LIKE_PANEL = "PatientNameLikePanel";
     public static final String MEDICINE_STATS_PANEL = "MedicineStatsPanel";
 
@@ -38,6 +39,7 @@ public class MainFrame extends JFrame {
     private InsertDoctorPanel insertDoctorPanel;
     private MedicineStatsPanel medicineStatsPanel;
     private AppointmentPanel appointmentPanel;
+    private PatientAppointmentsPanel patientAppointmentsPanel;
     private CancelAppointmentPanel cancelAppointmentPanel;
 
     public void setCurrentPatientSsn(int ssn) {
@@ -93,6 +95,8 @@ public class MainFrame extends JFrame {
         mainPanel.add(new PatientUpdatePanel(this), PATIENT_UPDATE_PANEL);
         appointmentPanel = new AppointmentPanel(this);
         mainPanel.add(appointmentPanel, APPOINTMENT_PANEL);
+        patientAppointmentsPanel = new PatientAppointmentsPanel(this);
+        mainPanel.add(patientAppointmentsPanel, PATIENT_APPOINTMENTS_PANEL);
         mainPanel.add(new PatientNameLikePanel(this), PATIENT_NAME_LIKE_PANEL);
         medicineStatsPanel = new MedicineStatsPanel(this);
         mainPanel.add(medicineStatsPanel, MEDICINE_STATS_PANEL);
@@ -134,6 +138,7 @@ public class MainFrame extends JFrame {
         if (INSERT_DOCTOR_PANEL.equals(panelName) && insertDoctorPanel != null) insertDoctorPanel.refreshDepartments();
         if (MEDICINE_STATS_PANEL.equals(panelName) && medicineStatsPanel != null) medicineStatsPanel.refresh();
         if (APPOINTMENT_PANEL.equals(panelName) && appointmentPanel != null) appointmentPanel.refresh();
+        if (PATIENT_APPOINTMENTS_PANEL.equals(panelName) && patientAppointmentsPanel != null) patientAppointmentsPanel.refresh();
         if (CANCEL_APPOINTMENT_PANEL.equals(panelName) && cancelAppointmentPanel != null) cancelAppointmentPanel.refresh();
         cardLayout.show(mainPanel, panelName);
         mainPanel.revalidate();

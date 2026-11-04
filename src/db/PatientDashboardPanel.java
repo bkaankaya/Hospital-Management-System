@@ -9,11 +9,14 @@ public class PatientDashboardPanel extends JPanel {
         JPanel actions = DesktopStyles.actionList();
         JButton appointment = DesktopStyles.button("Book an appointment", true);
         appointment.addActionListener(e -> mainFrame.showPanel(MainFrame.APPOINTMENT_PANEL));
+        JButton upcoming = DesktopStyles.button("My appointments", false);
+        upcoming.addActionListener(e -> mainFrame.showPanel(MainFrame.PATIENT_APPOINTMENTS_PANEL));
         JButton address = DesktopStyles.button("Update contact address", false);
         address.addActionListener(e -> mainFrame.showPanel(MainFrame.PATIENT_UPDATE_PANEL));
         JButton logout = DesktopStyles.button("Sign out", false);
         logout.addActionListener(e -> mainFrame.showPanel(MainFrame.LOGIN_PANEL));
         actions.add(appointment);
+        actions.add(upcoming);
         actions.add(address);
         actions.add(logout);
         add(DesktopStyles.page("Patient workspace",

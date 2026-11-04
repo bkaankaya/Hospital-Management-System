@@ -92,6 +92,16 @@ public final class IntegrationSmokeTest {
         Appointment appointment = new Appointment(date, "09:00:00", patientId, doctorId);
         require(appointmentDao.bookAppointment(appointment), "Booking insert failed");
         require(!appointmentDao.bookAppointment(appointment), "Duplicate booking should be rejected");
+        java.util.List<String[]> patientSchedule = appointmentDao.getPatientUpcomingAppointments(patientId);
+        require(patientSchedule != null && patientSchedule.size() == 1,
+                "Patient schedule did not show booked appointment");
+        require(appointmentDao.getPatientUpcomingAppointments(patientId + 9099).isEmpty(),
+                "Patient schedule leaked an unrelated record");
+        java.util.List<String[]> doctorSchedule = appointmentDao.getDoctorUpcomingAppointments(doctorId);
+        require(doctorSchedule != null && doctorSchedule.size() == 1,
+                "Doctor schedule did not show booked appointment");
+        require(appointmentDao.getDoctorUpcomingAppointments(doctorId + 9099).isEmpty(),
+                "Doctor schedule leaked an unrelated record");
         List<String> after = appointmentDao.getTimeList(doctorId, date);
         require(after != null && !after.contains("09:00:00"), "Booked slot was not removed");
         List<String> ids = appointmentDao.getDocAppointments(doctorId);
