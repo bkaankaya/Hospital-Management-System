@@ -40,15 +40,29 @@ public class PatientNameLikePanel extends JPanel {
                 JOptionPane.showMessageDialog(null, "Fill in all the blanks to continue!", "Warning",
                         JOptionPane.WARNING_MESSAGE);
             } else {
-                // Örnek veri; gerçek veri DAO’dan alınmalıdır.
-                String dummyResult = "Patient1\tData1\tData2\nPatient2\tData3\tData4";
-                textArea.setText(dummyResult);
+                java.util.List<java.util.ArrayList<String>> results =
+                        new PatientDAO().patientNameLike(stringInput.getText());
+                if (results == null) {
+                    textArea.setText("Database search failed.");
+                } else if (results.isEmpty()) {
+                    textArea.setText("No matching patients.");
+                } else {
+                    StringBuilder output = new StringBuilder();
+                    for (java.util.List<String> row : results) {
+                        for (int i = 0; i < row.size(); i++) {
+                            if (i > 0) output.append(" | ");
+                            output.append(row.get(i) == null ? "-" : row.get(i));
+                        }
+                        output.append("\n");
+                    }
+                    textArea.setText(output.toString());
+                }
             }
         });
 
         JButton backButton = new JButton("Geri");
         backButton.setBounds(10, 10, 80, 30);
         add(backButton);
-        backButton.addActionListener(e -> mainFrame.showPanel(MainFrame.PATIENT_DASHBOARD_PANEL));
+        backButton.addActionListener(e -> mainFrame.showPanel(MainFrame.INSERT_MENU_PANEL));
     }
 }
