@@ -166,6 +166,26 @@ public final class IntegrationSmokeTest {
                 require(rs.getString(2).startsWith("enc:v1:"), "Diagnosis not encrypted");
             }
         }
+        // The database enforces audit metadata even for direct JDBC writes.
+        try (Connection con = DatabaseManager.getConnection();
+             PreparedStatement stmt = con.prepareStatement(
+                     "SELECT Event_Type, COUNT(*) FROM Audit_Event GROUP BY Event_Type")) {
+            java.util.Map<String, Integer> counts = new java.util.HashMap<>();
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) counts.put(rs.getString(1), rs.getInt(2));
+            }
+            require(counts.getOrDefault("APPOINTMENT_CREATED", 0) == 2,
+                    "Each successful booking must produce exactly one audit event");
+            require(counts.getOrDefault("APPOINTMENT_CANCELLED", 0) == 2,
+                    "Each successful cancellation must produce exactly one audit event");
+            require(counts.getOrDefault("MEDICAL_RECORD_CREATED", 0) == 1,
+                    "Medical record writes must be audited");
+            require(counts.getOrDefault("PATIENT_ADDRESS_UPDATED", 0) == 1,
+                    "Patient address change missing audit");
+            require(counts.getOrDefault("DOCTOR_ADDRESS_UPDATED", 0) == 1,
+                    "Doctor address change missing audit");
+        }
+
         System.out.println("Hospital MySQL integration smoke tests passed");
     }
 }
