@@ -249,7 +249,7 @@ public class ModernLoginPanel extends JPanel {
     }
     
     private boolean authenticateUser(String ssn, String name, String surname, String password, String userType) {
-        String tableName = userType.equals("Doktor") ? "doctor" : "patient";
+        String tableName = userType.equals("Doktor") ? "Doctor" : "Patient";
         String query = "SELECT password_hash, salt FROM " + tableName + 
                       " WHERE SSN = ? AND name = ? AND surname = ? AND is_active = 1";
         
