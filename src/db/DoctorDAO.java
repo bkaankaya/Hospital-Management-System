@@ -66,7 +66,7 @@ public class DoctorDAO {
 		//try with resources
 		//automatically closes resources
 		try (Connection con = DatabaseManager.getConnection();
-			PreparedStatement pst = con.prepareStatement("select * from doctor where SSN=?") ){
+			PreparedStatement pst = con.prepareStatement("select * from Doctor where SSN=?") ){
 			pst.setInt(1, Ssn);
 			
 		try (ResultSet set = pst.executeQuery() ){
@@ -96,7 +96,7 @@ public class DoctorDAO {
 			//try with resources
 			//automatically closes resources
 			try (Connection con = DatabaseManager.getConnection();
-				PreparedStatement pst = con.prepareStatement("select * from doctor where concat(name,' ', surname)=?") ){
+				PreparedStatement pst = con.prepareStatement("select * from Doctor where concat(name,' ', surname)=?") ){
 				pst.setString(1, name_surname);
 				
 			try (ResultSet set = pst.executeQuery() ){
@@ -124,7 +124,7 @@ public class DoctorDAO {
 					//try with resources
 					//automatically closes resources
 					try (Connection con = DatabaseManager.getConnection();
-						PreparedStatement pst = con.prepareStatement("select * from doctor where concat(name,' ', surname)=?") ){
+						PreparedStatement pst = con.prepareStatement("select * from Doctor where concat(name,' ', surname)=?") ){
 						pst.setString(1, name_surname);
 						
 					try (ResultSet set = pst.executeQuery() ){
@@ -145,7 +145,7 @@ public class DoctorDAO {
 	{
 		ArrayList<String> list = new ArrayList<String>() ;
 		try (Connection con = DatabaseManager.getConnection();
-			PreparedStatement pst = con.prepareStatement("select concat(name, ' ', surname) from doctor where department_name=?") ){
+			PreparedStatement pst = con.prepareStatement("select concat(name, ' ', surname) from Doctor where department_name=?") ){
 			pst.setString(1, dep);
 		try (ResultSet set = pst.executeQuery() ){
 			
@@ -165,7 +165,7 @@ public class DoctorDAO {
 	public void updateAddress(int doc_ssn, String new_address) {
 		try (Connection con = DatabaseManager.getConnection();
 			Statement st = con.createStatement() ){
-			String query = "update doctor set address = ? where SSN =" + doc_ssn;
+			String query = "update Doctor set address = ? where SSN =" + doc_ssn;
 		try	(PreparedStatement pst = con.prepareStatement(query) ){
 			pst.setString(1, new_address);
 			pst.executeUpdate();
@@ -195,7 +195,7 @@ public class DoctorDAO {
 	public boolean checkDoctorLogin(int doc_SSN, String name, String surname) 
 	{
 		try (Connection con = DatabaseManager.getConnection();
-			PreparedStatement pst = con.prepareStatement("SELECT * FROM doctor where SSN=? and name=? and surname=?") ){
+			PreparedStatement pst = con.prepareStatement("SELECT * FROM Doctor where SSN=? and name=? and surname=?") ){
 			pst.setInt(1, doc_SSN);
 			pst.setString(2, name);
 			pst.setString(3, surname);
