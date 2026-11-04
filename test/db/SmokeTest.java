@@ -61,6 +61,34 @@ public final class SmokeTest {
         require(!AccessPolicy.canOpen(AccessPolicy.Role.ADMIN, "UnknownPanel"),
                 "Unknown panels must be denied");
 
+        // Fail closed on remote JDBC endpoints unless host certificate verification is configured.
+        try {
+            DatabaseManager.validateJdbcUrl("jdbc:mysql://127.0.0.1:3306/hospital?useSSL=false", false);
+            DatabaseManager.validateJdbcUrl("jdbc:mysql://localhost/hospital", false);
+            DatabaseManager.validateJdbcUrl("jdbc:mysql://db.example.invalid/hospital?sslMode=VERIFY_IDENTITY", true);
+            for (String unsafe : new String[] {
+                    "jdbc:mysql://db.example.invalid/hospital",
+                    "jdbc:mysql://db.example.invalid/hospital?sslMode=REQUIRED",
+                    "jdbc:mysql://db.example.invalid/hospital?sslMode=VERIFY_IDENTITY&trustServerCertificate=true",
+                    "jdbc:mysql://db.example.invalid/hospital?sslMode=VERIFY_IDENTITY&allowPublicKeyRetrieval=true"
+            }) {
+                try {
+                    DatabaseManager.validateJdbcUrl(unsafe, true);
+                    throw new AssertionError("Unsafe remote JDBC URL accepted");
+                } catch (java.sql.SQLException expected) {
+                    // Intentionally rejected.
+                }
+            }
+            try {
+                DatabaseManager.validateJdbcUrl("jdbc:mysql://remote.example.invalid/hospital?sslMode=VERIFY_IDENTITY", false);
+                throw new AssertionError("Remote database enabled without opt-in");
+            } catch (java.sql.SQLException expected) {
+                // Explicit opt-in remains mandatory.
+            }
+        } catch (java.sql.SQLException ex) {
+            throw new AssertionError("Valid local or verified remote URL was rejected", ex);
+        }
+
         Room room = new Room(100, "Cardiology");
         require(room.Room_ID == 100, "Room model construction failed");
         System.out.println("Hospital smoke tests passed");

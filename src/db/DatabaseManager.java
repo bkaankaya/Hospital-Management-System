@@ -35,13 +35,69 @@ public final class DatabaseManager {
         if (username == null || username.trim().isEmpty() || password == null) {
             throw new SQLException("Configure MySQL username/password in environment variables or login.properties");
         }
+        // A desktop client must not silently send credentials across the network.
+        // Remote connections are opt-in and require MySQL host-certificate verification.
+        validateJdbcUrl(url, "true".equalsIgnoreCase(System.getenv("HOSPITAL_ALLOW_REMOTE_DB")));
+        DriverManager.setLoginTimeout(10);
         try {
-            return DriverManager.getConnection(url, username, password);
+            java.util.Properties connectionProperties = new java.util.Properties();
+            connectionProperties.setProperty("user", username);
+            connectionProperties.setProperty("password", password);
+            connectionProperties.setProperty("connectTimeout", "10000");
+            connectionProperties.setProperty("socketTimeout", "20000");
+            return DriverManager.getConnection(url, connectionProperties);
         } catch (SQLException ex) {
             // Keep credentials and full connection strings out of diagnostic logs.
             logger.log(Level.WARNING, "MySQL connection unavailable (SQLState {0})", ex.getSQLState());
             throw ex;
         }
+    }
+
+    /**
+     * Reject nonstandard JDBC URLs and remote traffic unless explicitly approved
+     * and protected using MySQL Connector/J's sslMode=VERIFY_IDENTITY.
+     * Localhost is permitted for the existing isolated integration fixture.
+     */
+    static void validateJdbcUrl(String jdbc, boolean allowRemote) throws SQLException {
+        if (jdbc == null || !jdbc.startsWith("jdbc:mysql://")) {
+            throw new SQLException("Only standard jdbc:mysql:// connections are supported");
+        }
+        final java.net.URI uri;
+        try {
+            uri = new java.net.URI(jdbc.substring("jdbc:".length()));
+        } catch (java.net.URISyntaxException ex) {
+            throw new SQLException("Invalid JDBC URL syntax");
+        }
+        String host = uri.getHost();
+        if (host == null || uri.getUserInfo() != null || uri.getFragment() != null
+                || uri.getPath() == null || uri.getPath().length() < 2
+                || uri.getRawAuthority() == null || uri.getRawAuthority().contains(",")) {
+            throw new SQLException("A single explicit database host and schema are required");
+        }
+        boolean loopback = "localhost".equalsIgnoreCase(host)
+                || "127.0.0.1".equals(host) || "::1".equals(host);
+        if (loopback) return;
+        if (!allowRemote) {
+            throw new SQLException("Remote database access is disabled; configure localhost");
+        }
+        String query = uri.getRawQuery();
+        boolean verified = false;
+        if (query != null) {
+            for (String param : query.split("&")) {
+                String[] entry = param.split("=", 2);
+                if (entry.length != 2) continue;
+                if (entry[0].equalsIgnoreCase("sslMode")
+                        && entry[1].equalsIgnoreCase("VERIFY_IDENTITY")) verified = true;
+                if ((entry[0].equalsIgnoreCase("useSSL") && entry[1].equalsIgnoreCase("false"))
+                        || (entry[0].equalsIgnoreCase("trustServerCertificate")
+                        && entry[1].equalsIgnoreCase("true"))
+                        || (entry[0].equalsIgnoreCase("allowPublicKeyRetrieval")
+                        && entry[1].equalsIgnoreCase("true"))) {
+                    throw new SQLException("Insecure JDBC options are forbidden for remote hosts");
+                }
+            }
+        }
+        if (!verified) throw new SQLException("Remote MySQL requires sslMode=VERIFY_IDENTITY");
     }
 
     private static String override(String name, String fallback) {
