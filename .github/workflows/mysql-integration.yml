@@ -1,0 +1,49 @@
+name: Hospital isolated MySQL integration
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  mysql-integration:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: ci-local-only-password
+          MYSQL_DATABASE: hospital
+        ports:
+          - 3306:3306
+    env:
+      HOSPITAL_DB_URL: jdbc:mysql://127.0.0.1:3306/hospital?useSSL=false&allowPublicKeyRetrieval=true
+      HOSPITAL_DB_USER: root
+      HOSPITAL_DB_PASSWORD: ci-local-only-password
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Bootstrap disposable MySQL database
+        run: |
+          container="$(docker ps --filter ancestor=mysql:8.0 --format '{{.ID}}' | head -n 1)"
+          test -n "$container"
+          ready=0
+          for attempt in $(seq 1 40); do
+            if docker exec "$container" mysqladmin ping -h 127.0.0.1 -uroot -pci-local-only-password --silent; then
+              ready=1
+              break
+            fi
+            sleep 2
+          done
+          test "$ready" -eq 1
+          docker exec -i "$container" mysql -uroot -pci-local-only-password < db/schema.sql
+      - name: Package application using existing pinned versions
+        run: mvn -B -q -DskipTests package
+      - name: Compile and run database integration smoke
+        run: |
+          mkdir -p build/integration-tests
+          javac --release 11 -encoding UTF-8 -cp target/hospital-management-system-2.0.0.jar -d build/integration-tests test/db/IntegrationSmokeTest.java
+          java -Djava.awt.headless=true -cp target/hospital-management-system-2.0.0.jar:build/integration-tests db.IntegrationSmokeTest
