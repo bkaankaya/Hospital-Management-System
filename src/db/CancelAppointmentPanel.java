@@ -23,8 +23,6 @@ public class CancelAppointmentPanel extends JPanel {
         add(appointmentIdLabel);
 
         appIdCombo = new JComboBox<>();
-        appIdCombo.addItem("101");
-        appIdCombo.addItem("102");
         appIdCombo.setBounds(212, 124, 241, 35);
         add(appIdCombo);
 
@@ -37,9 +35,22 @@ public class CancelAppointmentPanel extends JPanel {
                 JOptionPane.showMessageDialog(null, "Fill in all the blanks to continue!", "Warning",
                         JOptionPane.WARNING_MESSAGE);
             } else {
-                // Randevu iptal işlemi; DAO çağrısı burada yapılmalı.
-                JOptionPane.showMessageDialog(null, "SUCCESSFUL!", "SUCCESSFUL", JOptionPane.INFORMATION_MESSAGE);
-                mainFrame.showPanel(MainFrame.DOCTOR_DASHBOARD_PANEL);
+                Integer doctorId = mainFrame.getCurrentDoctorSsn();
+                if (doctorId == null) {
+                    JOptionPane.showMessageDialog(this, "Please log in as a doctor.",
+                            "Cancellation denied", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+                int appointmentId = Integer.parseInt((String) appIdCombo.getSelectedItem());
+                if (new AppointmentDAO().cancelDoctorAppointment(appointmentId, doctorId)) {
+                    JOptionPane.showMessageDialog(this, "Appointment canceled.", "Success",
+                            JOptionPane.INFORMATION_MESSAGE);
+                    mainFrame.showPanel(MainFrame.DOCTOR_DASHBOARD_PANEL);
+                } else {
+                    JOptionPane.showMessageDialog(this, "Appointment could not be canceled.",
+                            "Cancellation failed", JOptionPane.ERROR_MESSAGE);
+                    refresh();
+                }
             }
         });
 
@@ -48,4 +59,14 @@ public class CancelAppointmentPanel extends JPanel {
         add(backButton);
         backButton.addActionListener(e -> mainFrame.showPanel(MainFrame.DOCTOR_DASHBOARD_PANEL));
     }
+    public void refresh() {
+        appIdCombo.removeAllItems();
+        Integer doctorId = mainFrame.getCurrentDoctorSsn();
+        if (doctorId == null) return;
+        java.util.List<String> ids = new AppointmentDAO().getDocAppointments(doctorId);
+        if (ids != null) {
+            for (String id : ids) appIdCombo.addItem(id);
+        }
+    }
+
 }

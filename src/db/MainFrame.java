@@ -34,6 +34,8 @@ public class MainFrame extends JFrame {
     private String currentPanel;
     private Integer currentPatientSsn;
     private Integer currentDoctorSsn;
+    private AppointmentPanel appointmentPanel;
+    private CancelAppointmentPanel cancelAppointmentPanel;
 
     public void setCurrentPatientSsn(int ssn) {
         currentPatientSsn = ssn;
@@ -70,10 +72,12 @@ public class MainFrame extends JFrame {
         mainPanel.add(new InsertPatientPanel(this), INSERT_PATIENT_PANEL);
         mainPanel.add(new DoctorDashboardPanel(this), DOCTOR_DASHBOARD_PANEL);
         mainPanel.add(new DoctorUpdatePanel(this), DOCTOR_UPDATE_PANEL);
-        mainPanel.add(new CancelAppointmentPanel(this), CANCEL_APPOINTMENT_PANEL);
+        cancelAppointmentPanel = new CancelAppointmentPanel(this);
+        mainPanel.add(cancelAppointmentPanel, CANCEL_APPOINTMENT_PANEL);
         mainPanel.add(new PatientDashboardPanel(this), PATIENT_DASHBOARD_PANEL);
         mainPanel.add(new PatientUpdatePanel(this), PATIENT_UPDATE_PANEL);
-        mainPanel.add(new AppointmentPanel(this), APPOINTMENT_PANEL);
+        appointmentPanel = new AppointmentPanel(this);
+        mainPanel.add(appointmentPanel, APPOINTMENT_PANEL);
         mainPanel.add(new PatientNameLikePanel(this), PATIENT_NAME_LIKE_PANEL);
         mainPanel.add(new MedicineStatsPanel(this), MEDICINE_STATS_PANEL);
 
@@ -107,6 +111,8 @@ public class MainFrame extends JFrame {
             panelHistory.push(currentPanel);
         }
         currentPanel = panelName;
+        if (APPOINTMENT_PANEL.equals(panelName) && appointmentPanel != null) appointmentPanel.refresh();
+        if (CANCEL_APPOINTMENT_PANEL.equals(panelName) && cancelAppointmentPanel != null) cancelAppointmentPanel.refresh();
         cardLayout.show(mainPanel, panelName);
         mainPanel.revalidate();
         mainPanel.repaint();

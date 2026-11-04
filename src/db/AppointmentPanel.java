@@ -6,6 +6,12 @@ import java.awt.event.*;
 
 public class AppointmentPanel extends JPanel {
     private MainFrame mainFrame;
+    private JComboBox<String> deptCombo;
+    private JComboBox<String> doctorCombo;
+    private JComboBox<String> timeCombo;
+    private JTextField dateField;
+    private final DoctorDAO docDao = new DoctorDAO();
+    private final AppointmentDAO appointmentDao = new AppointmentDAO();
 
     public AppointmentPanel(MainFrame mainFrame) {
         this.mainFrame = mainFrame;
@@ -21,7 +27,7 @@ public class AppointmentPanel extends JPanel {
         deptLabel.setBounds(21, 62, 204, 29);
         add(deptLabel);
 
-        JComboBox<String> deptCombo = new JComboBox<>();
+        deptCombo = new JComboBox<>();
         deptCombo.setBounds(21, 90, 204, 46);
         DepartmentDAO deptDao = new DepartmentDAO();
         java.util.List<String> depts = deptDao.getDepartmentList();
@@ -37,9 +43,9 @@ public class AppointmentPanel extends JPanel {
         doctorLabel.setBounds(21, 147, 204, 29);
         add(doctorLabel);
 
-        JComboBox<String> doctorCombo = new JComboBox<>();
+        doctorCombo = new JComboBox<>();
         doctorCombo.setBounds(21, 176, 204, 46);
-        DoctorDAO docDao = new DoctorDAO();
+        // Shared DAO field handles doctor lookup.
         if (deptCombo.getItemCount() > 0) {
             java.util.List<String> docs = docDao.getDoctorList(deptCombo.getItemAt(0));
             if (docs != null) {
@@ -49,6 +55,7 @@ public class AppointmentPanel extends JPanel {
             }
         }
         add(doctorCombo);
+        doctorCombo.addActionListener(e -> refreshSlots());
 
         deptCombo.addActionListener(e -> {
             doctorCombo.removeAllItems();
@@ -68,7 +75,7 @@ public class AppointmentPanel extends JPanel {
         dateLabel.setBounds(21, 233, 204, 29);
         add(dateLabel);
 
-        JTextField dateField = new JTextField();
+        dateField = new JTextField();
         dateField.setBounds(21, 273, 130, 46);
         dateField.setEditable(false);
         add(dateField);
@@ -84,6 +91,7 @@ public class AppointmentPanel extends JPanel {
                 java.util.Date selectedDate = (java.util.Date) dateSpinner.getValue();
                 java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd");
                 dateField.setText(sdf.format(selectedDate));
+                refreshSlots();
             }
         });
         add(datePickerBtn);
@@ -93,12 +101,9 @@ public class AppointmentPanel extends JPanel {
         timeLabel.setBounds(21, 331, 204, 29);
         add(timeLabel);
 
-        JComboBox<String> timeCombo = new JComboBox<>();
+        timeCombo = new JComboBox<>();
         timeCombo.setBounds(21, 371, 204, 46);
-        for (int i = 9; i <= 17; i++) {
-            timeCombo.addItem(String.format("%02d:00", i));
-            if (i != 17) timeCombo.addItem(String.format("%02d:30", i));
-        }
+        // Times are loaded from the database after date and doctor selection.
         add(timeCombo);
 
         JButton confirmButton = new JButton("Confirm");
@@ -113,9 +118,24 @@ public class AppointmentPanel extends JPanel {
                 JOptionPane.showMessageDialog(null, "Fill in all the blanks to continue!", "Warning",
                         JOptionPane.WARNING_MESSAGE);
             } else {
-                // Randevu oluşturma işlemi; DAO çağrısı burada yapılmalı.
-                JOptionPane.showMessageDialog(null, "SUCCESSFUL!", "SUCCESSFUL", JOptionPane.INFORMATION_MESSAGE);
-                mainFrame.showPanel(MainFrame.PATIENT_DASHBOARD_PANEL);
+                Integer patientId = mainFrame.getCurrentPatientSsn();
+                int doctorId = docDao.getDoctorSsn((String) doctorCombo.getSelectedItem());
+                if (patientId == null || doctorId <= 0) {
+                    JOptionPane.showMessageDialog(this, "Login as a patient and select a valid doctor.",
+                            "Booking denied", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+                Appointment appointment = new Appointment(dateField.getText(),
+                        (String) timeCombo.getSelectedItem(), patientId, doctorId);
+                if (appointmentDao.bookAppointment(appointment)) {
+                    JOptionPane.showMessageDialog(this, "Appointment booked.", "Success",
+                            JOptionPane.INFORMATION_MESSAGE);
+                    mainFrame.showPanel(MainFrame.PATIENT_DASHBOARD_PANEL);
+                } else {
+                    JOptionPane.showMessageDialog(this, "Appointment was not saved. The slot may be unavailable.",
+                            "Booking failed", JOptionPane.ERROR_MESSAGE);
+                    refreshSlots();
+                }
             }
         });
 
@@ -124,4 +144,27 @@ public class AppointmentPanel extends JPanel {
         add(backButton);
         backButton.addActionListener(e -> mainFrame.showPanel(MainFrame.PATIENT_DASHBOARD_PANEL));
     }
+    public void refresh() {
+        dateField.setText("");
+        timeCombo.removeAllItems();
+        deptCombo.removeAllItems();
+        java.util.List<String> departments = new DepartmentDAO().getDepartmentList();
+        if (departments != null) {
+            for (String department : departments) deptCombo.addItem(department);
+        }
+    }
+
+    private void refreshSlots() {
+        if (timeCombo == null) return;
+        timeCombo.removeAllItems();
+        if (dateField == null || dateField.getText().trim().isEmpty()
+                || doctorCombo.getSelectedItem() == null) return;
+        int doctorId = docDao.getDoctorSsn((String) doctorCombo.getSelectedItem());
+        if (doctorId <= 0) return;
+        java.util.List<String> times = appointmentDao.getTimeList(doctorId, dateField.getText());
+        if (times != null) {
+            for (String time : times) timeCombo.addItem(time);
+        }
+    }
+
 }

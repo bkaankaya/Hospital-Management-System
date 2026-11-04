@@ -39,6 +39,45 @@ public class AppointmentDAO {
 	}
 	
 	
+    // Database unique constraints prevent concurrent double bookings.
+    public boolean bookAppointment(Appointment appointment) {
+        if (appointment == null || appointment.Patient_SSN <= 0 || appointment.Doctor_SSN <= 0) return false;
+        final LocalDate date;
+        try {
+            date = LocalDate.parse(appointment.Date);
+            if (date.isBefore(LocalDate.now()) || date.isAfter(LocalDate.now().plusDays(13))
+                    || !timeConstraints().contains(appointment.Time)) return false;
+        } catch (RuntimeException ex) {
+            return false;
+        }
+        String sql = "INSERT INTO Appointment (Date, Time, Patient_SSN, Doctor_SSN) VALUES (?, ?, ?, ?)";
+        try (Connection con = DatabaseManager.getConnection();
+             PreparedStatement stmt = con.prepareStatement(sql)) {
+            stmt.setDate(1, java.sql.Date.valueOf(date));
+            stmt.setTime(2, java.sql.Time.valueOf(appointment.Time));
+            stmt.setInt(3, appointment.Patient_SSN);
+            stmt.setInt(4, appointment.Doctor_SSN);
+            return stmt.executeUpdate() == 1;
+        } catch (SQLException ex) {
+            System.err.println("Appointment insert failed: " + ex.getMessage());
+            return false;
+        }
+    }
+
+    public boolean cancelDoctorAppointment(int appointmentId, int doctorId) {
+        if (appointmentId <= 0 || doctorId <= 0) return false;
+        String sql = "DELETE FROM Appointment WHERE app_id = ? AND Doctor_SSN = ?";
+        try (Connection con = DatabaseManager.getConnection();
+             PreparedStatement stmt = con.prepareStatement(sql)) {
+            stmt.setInt(1, appointmentId);
+            stmt.setInt(2, doctorId);
+            return stmt.executeUpdate() == 1;
+        } catch (SQLException ex) {
+            System.err.println("Appointment cancellation failed: " + ex.getMessage());
+            return false;
+        }
+    }
+
 	// cancels an appointment using app_id
 	public void cancelAppointment(int app_id)	
 	{
