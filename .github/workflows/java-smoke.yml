@@ -14,6 +14,8 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+      - name: Verify explicitly pinned legacy technology
+        run: bash ci/verify-legacy-stack.sh
       - name: Compile existing Java sources without downloading project dependencies
         run: |
           mkdir -p build/classes build/test-classes

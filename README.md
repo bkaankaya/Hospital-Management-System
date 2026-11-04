@@ -1,5 +1,12 @@
 # Hospital Management System
 
+**Classic Java engineering, not a framework showcase.** This repository intentionally retains its Java Swing + JDBC + MySQL desktop architecture and original dependency versions. Work is focused on maintainability, tested workflows, data integrity, defensive coding and a polished desktop experience.
+
+**Engineering documentation:** [Architecture](docs/ARCHITECTURE.md) · [Security & threats](SECURITY.md) · [Operations & recovery](docs/OPERATIONS.md) · [Release checklist](docs/RELEASE_CHECKLIST.md)
+
+**Recent improvements:** local-only database connections by default (remote TLS verification required), database-triggered event auditing, a patient appointment table, a doctor schedule table, and prevention of unsafe legacy booking/deletion APIs. These changes do not constitute clinical production certification.
+
+
 A traditional **Java-only** desktop hospital-management learning project built with **Java Swing, JDBC, and MySQL**. Existing dependency and tool versions are preserved. The GUI supports patients, doctors, and a local administrator.
 
 > **Security scope:** Authentication, account lockout, and new medical-record encryption have been added. This is still a **local educational application, not an approved system for real patient data**. Direct desktop-to-MySQL credentials, historical plaintext records, unencrypted demographic fields, and the absence of a server-side authorization boundary require additional architecture and security review before any clinical use.
