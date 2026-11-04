@@ -132,6 +132,7 @@ public class LoginPanel extends JPanel {
             byte[] expected = configured.getBytes(java.nio.charset.StandardCharsets.UTF_8);
             if (java.security.MessageDigest.isEqual(expected, supplied)) {
                 adminPassword.setText("");
+                mainFrame.setAdminAuthenticated();
                 mainFrame.showPanel(MainFrame.INSERT_MENU_PANEL);
             } else {
                 JOptionPane.showMessageDialog(this, "Invalid administrator password.",

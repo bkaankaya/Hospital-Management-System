@@ -34,17 +34,28 @@ public class MainFrame extends JFrame {
     private String currentPanel;
     private Integer currentPatientSsn;
     private Integer currentDoctorSsn;
+    private AccessPolicy.Role currentRole = AccessPolicy.Role.NONE;
     private AppointmentPanel appointmentPanel;
     private CancelAppointmentPanel cancelAppointmentPanel;
 
     public void setCurrentPatientSsn(int ssn) {
+        if (ssn <= 0) throw new IllegalArgumentException("Invalid patient ID");
         currentPatientSsn = ssn;
         currentDoctorSsn = null;
+        currentRole = AccessPolicy.Role.PATIENT;
     }
 
     public void setCurrentDoctorSsn(int ssn) {
+        if (ssn <= 0) throw new IllegalArgumentException("Invalid doctor ID");
         currentDoctorSsn = ssn;
         currentPatientSsn = null;
+        currentRole = AccessPolicy.Role.DOCTOR;
+    }
+
+    public void setAdminAuthenticated() {
+        currentPatientSsn = null;
+        currentDoctorSsn = null;
+        currentRole = AccessPolicy.Role.ADMIN;
     }
 
     public Integer getCurrentPatientSsn() {
@@ -102,10 +113,14 @@ public class MainFrame extends JFrame {
      * görünecek!)
      */
     public void showPanel(String panelName) {
-        if (panelName == null) return;
+        if (!AccessPolicy.canOpen(currentRole, panelName)) {
+            System.err.println("Unauthorized desktop panel navigation rejected");
+            return;
+        }
         if (LOGIN_PANEL.equals(panelName)) {
             currentPatientSsn = null;
             currentDoctorSsn = null;
+            currentRole = AccessPolicy.Role.NONE;
             panelHistory.clear();
         } else if (currentPanel != null && !currentPanel.equals(panelName)) {
             panelHistory.push(currentPanel);
@@ -160,10 +175,15 @@ public class MainFrame extends JFrame {
     private void goBack() {
         if (panelHistory.isEmpty()) return;
         String previous = panelHistory.pop();
+        if (!AccessPolicy.canOpen(currentRole, previous)) {
+            System.err.println("Unauthorized navigation history entry ignored");
+            return;
+        }
         currentPanel = previous;
         if (LOGIN_PANEL.equals(previous)) {
             currentPatientSsn = null;
             currentDoctorSsn = null;
+            currentRole = AccessPolicy.Role.NONE;
             panelHistory.clear();
         }
         cardLayout.show(mainPanel, previous);
@@ -176,7 +196,8 @@ public class MainFrame extends JFrame {
      * yönlendirme
      */
     public void loginSuccessful() {
-        showPanel(INSERT_MENU_PANEL); // Giriş başarılı olduğunda Insert Menu panelini aç
+        // Kept for legacy callers; the insert menu requires an authenticated administrator.
+        showPanel(INSERT_MENU_PANEL);
     }
 
     // Yeni metodlar
