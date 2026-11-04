@@ -68,7 +68,7 @@ public class NurseDAO {
 		public void updateAddress(int nurse_ssn, String new_address) {
 			try (Connection con = DatabaseManager.getConnection();
 				Statement st = con.createStatement() ){
-				String query = "update nurse set address = ? where SSN =" + nurse_ssn;
+				String query = "update Nurse set address = ? where SSN =" + nurse_ssn;
 			try	(PreparedStatement pst = con.prepareStatement(query) ){
 				pst.setString(1, new_address);
 				pst.executeUpdate();
