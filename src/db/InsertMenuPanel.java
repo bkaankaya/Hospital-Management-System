@@ -25,5 +25,15 @@ public class InsertMenuPanel extends JPanel {
         insertDoctorButton.setBounds(200, 250, 200, 50);
         add(insertDoctorButton);
         insertDoctorButton.addActionListener(e -> mainFrame.showPanel(MainFrame.INSERT_DOCTOR_PANEL));
+
+        JButton searchButton = new JButton("Search Patients");
+        searchButton.setBounds(200, 350, 200, 45);
+        add(searchButton);
+        searchButton.addActionListener(e -> mainFrame.showPanel(MainFrame.PATIENT_NAME_LIKE_PANEL));
+
+        JButton statisticsButton = new JButton("Medicine Statistics");
+        statisticsButton.setBounds(200, 410, 200, 45);
+        add(statisticsButton);
+        statisticsButton.addActionListener(e -> mainFrame.showPanel(MainFrame.MEDICINE_STATS_PANEL));
     }
 }
