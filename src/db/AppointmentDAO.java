@@ -17,25 +17,11 @@ import java.util.Date;
 public class AppointmentDAO {
 	
 	// Adds an appointment with Appointment object as parameter
-	public void createAppointment(Appointment app) 
-	{
-		//try with resources
-		//automatically closes resources
-		try (Connection con = DatabaseManager.getConnection();
-			Statement st = con.createStatement() ){
-			String query = "insert into Appointment (Date, Time, Patient_SSN, Doctor_SSN) values (?, ?, ?, ?)";
-		try	(PreparedStatement pst = con.prepareStatement(query) ){
-			pst.setString(1, app.Date);
-			pst.setString(2, app.Time);
-			pst.setInt(3, app.Patient_SSN);
-			pst.setInt(4, app.Doctor_SSN);
-			pst.executeUpdate();
-			} 
-			} catch (SQLException e) {
-			System.out.println("Sql Error.");
-			e.printStackTrace(System.out);
-			}
-	}
+	@Deprecated
+    public void createAppointment(Appointment app) {
+        throw new UnsupportedOperationException(
+                "Unvalidated appointment insertion was removed; use bookAppointment()");
+    }
 	
 	
     // Database unique constraints prevent concurrent double bookings.
@@ -65,7 +51,11 @@ public class AppointmentDAO {
 
     public boolean cancelDoctorAppointment(int appointmentId, int doctorId) {
         if (appointmentId <= 0 || doctorId <= 0) return false;
-        String sql = "DELETE FROM Appointment WHERE app_id = ? AND Doctor_SSN = ?";
+        String sql = "DELETE FROM Appointment WHERE app_id=? AND Doctor_SSN=? "
+                + "AND (Date > CURRENT_DATE() OR (Date = CURRENT_DATE() AND Time > CURRENT_TIME())) "
+                + "AND NOT EXISTS (SELECT 1 FROM \`Add\` a "
+                + "WHERE a.Doctor_SSN=Appointment.Doctor_SSN "
+                + "AND a.Date=Appointment.Date AND a.Time=Appointment.Time)";
         try (Connection con = DatabaseManager.getConnection();
              PreparedStatement stmt = con.prepareStatement(sql)) {
             stmt.setInt(1, appointmentId);
@@ -78,22 +68,11 @@ public class AppointmentDAO {
     }
 
 	// cancels an appointment using app_id
-	public void cancelAppointment(int app_id)	
-	{
-		//try with resources
-		//automatically closes resources
-		try (Connection con = DatabaseManager.getConnection();
-			Statement st = con.createStatement() ){
-			String query = "delete from Appointment where app_id=?";
-		try	(PreparedStatement pst = con.prepareStatement(query) ){
-			pst.setInt(1, app_id);
-			pst.executeUpdate();
-		}
-			} catch (SQLException e) {
-				System.out.println("Sql Error.");
-				e.printStackTrace(System.out);
-			}
-	}
+	@Deprecated
+    public void cancelAppointment(int app_id) {
+        throw new UnsupportedOperationException(
+                "Unscoped cancellation was removed; use cancelDoctorAppointment()");
+    }
 	
 	// returns the doctor's appointments
 	public ArrayList<String> getDocAppointments(int doc_ssn)	

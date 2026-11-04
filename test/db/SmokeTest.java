@@ -93,6 +93,16 @@ public final class SmokeTest {
             throw new AssertionError("Valid local or verified remote URL was rejected", ex);
         }
 
+        AppointmentDAO appt = new AppointmentDAO();
+        try {
+            appt.createAppointment(null);
+            throw new AssertionError("Legacy unvalidated appointment API was callable");
+        } catch (UnsupportedOperationException expected) { }
+        try {
+            appt.cancelAppointment(12345);
+            throw new AssertionError("Legacy unscoped cancellation API was callable");
+        } catch (UnsupportedOperationException expected) { }
+
         Room room = new Room(100, "Cardiology");
         require(room.Room_ID == 100, "Room model construction failed");
         System.out.println("Hospital smoke tests passed");
