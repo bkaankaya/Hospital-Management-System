@@ -35,9 +35,15 @@ public class PatientUpdatePanel extends JPanel {
                 JOptionPane.showMessageDialog(null, "Fill in all the blanks to continue!", "Warning",
                         JOptionPane.WARNING_MESSAGE);
             } else {
-                // Hasta adres güncelleme işlemi; DAO çağrısı burada yapılmalı.
-                JOptionPane.showMessageDialog(null, "SUCCESSFUL!", "SUCCESSFUL", JOptionPane.INFORMATION_MESSAGE);
-                mainFrame.showPanel(MainFrame.PATIENT_DASHBOARD_PANEL);
+                Integer patientId = mainFrame.getCurrentPatientSsn();
+                if (patientId != null && new PatientDAO().tryUpdateAddress(patientId, addressInput.getText())) {
+                    JOptionPane.showMessageDialog(this, "Address updated.", "Success",
+                            JOptionPane.INFORMATION_MESSAGE);
+                    mainFrame.showPanel(MainFrame.PATIENT_DASHBOARD_PANEL);
+                } else {
+                    JOptionPane.showMessageDialog(this, "Address was not saved. Please check your login and database.",
+                            "Update failed", JOptionPane.ERROR_MESSAGE);
+                }
             }
         });
 

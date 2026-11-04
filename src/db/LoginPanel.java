@@ -50,6 +50,7 @@ public class LoginPanel extends JPanel {
                         String surname = patientSurnameField.getText().trim();
                         PatientDAO dao = new PatientDAO();
                         if (dao.checkPatientLogin(ssn, name, surname)) {
+                            mainFrame.setCurrentPatientSsn(ssn);
                             mainFrame.showPanel(MainFrame.PATIENT_DASHBOARD_PANEL);
                         } else {
                             JOptionPane.showMessageDialog(null, "Invalid Patient SSN, Name, or Surname!", "Error", JOptionPane.ERROR_MESSAGE);
@@ -98,7 +99,7 @@ public class LoginPanel extends JPanel {
                         String surname = doctorSurnameField.getText().trim();
                         DoctorDAO dao = new DoctorDAO();
                         if (dao.checkDoctorLogin(ssn, name, surname)) {
-                            // mainFrame.loginSuccessful() routes to INSERT_MENU_PANEL, but original code routed to DOCTOR_DASHBOARD_PANEL
+                            mainFrame.setCurrentDoctorSsn(ssn);
                             mainFrame.showPanel(MainFrame.DOCTOR_DASHBOARD_PANEL);
                         } else {
                             JOptionPane.showMessageDialog(null, "Invalid Doctor SSN, Name, or Surname!", "Error", JOptionPane.ERROR_MESSAGE);
@@ -110,8 +111,37 @@ public class LoginPanel extends JPanel {
             }
         });
 
+        // Admin setup is opt-in and is never enabled with a hard-coded password.
+        JPanel adminPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 30));
+        JPasswordField adminPassword = new JPasswordField(18);
+        JButton adminButton = new JButton("Administrator Login");
+        adminPanel.add(new JLabel("Local administrator password:"));
+        adminPanel.add(adminPassword);
+        adminPanel.add(adminButton);
+        adminButton.addActionListener(e -> {
+            String configured = System.getenv("HOSPITAL_ADMIN_PASSWORD");
+            char[] suppliedChars = adminPassword.getPassword();
+            byte[] supplied = new String(suppliedChars).getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            java.util.Arrays.fill(suppliedChars, '\0');
+            if (configured == null || configured.length() < 12) {
+                JOptionPane.showMessageDialog(this,
+                    "Set a 12+ character HOSPITAL_ADMIN_PASSWORD in your local environment first.",
+                    "Admin login disabled", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            byte[] expected = configured.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            if (java.security.MessageDigest.isEqual(expected, supplied)) {
+                adminPassword.setText("");
+                mainFrame.showPanel(MainFrame.INSERT_MENU_PANEL);
+            } else {
+                JOptionPane.showMessageDialog(this, "Invalid administrator password.",
+                        "Login denied", JOptionPane.ERROR_MESSAGE);
+            }
+        });
+
         tabbedPane.addTab("Patient Login", patientPanel);
         tabbedPane.addTab("Doctor Login", doctorPanel);
+        tabbedPane.addTab("Administrator", adminPanel);
         add(tabbedPane, BorderLayout.CENTER);
     }
 }

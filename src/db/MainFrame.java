@@ -31,6 +31,27 @@ public class MainFrame extends JFrame {
 
     // Tema değişimi için
     private boolean isDarkMode = false;
+    private String currentPanel;
+    private Integer currentPatientSsn;
+    private Integer currentDoctorSsn;
+
+    public void setCurrentPatientSsn(int ssn) {
+        currentPatientSsn = ssn;
+        currentDoctorSsn = null;
+    }
+
+    public void setCurrentDoctorSsn(int ssn) {
+        currentDoctorSsn = ssn;
+        currentPatientSsn = null;
+    }
+
+    public Integer getCurrentPatientSsn() {
+        return currentPatientSsn;
+    }
+
+    public Integer getCurrentDoctorSsn() {
+        return currentDoctorSsn;
+    }
 
     public MainFrame() {
         setTitle(APP_TITLE);
@@ -77,9 +98,15 @@ public class MainFrame extends JFrame {
      * görünecek!)
      */
     public void showPanel(String panelName) {
-        if (!panelName.equals(LOGIN_PANEL)) {
-            panelHistory.push(panelName);
+        if (panelName == null) return;
+        if (LOGIN_PANEL.equals(panelName)) {
+            currentPatientSsn = null;
+            currentDoctorSsn = null;
+            panelHistory.clear();
+        } else if (currentPanel != null && !currentPanel.equals(panelName)) {
+            panelHistory.push(currentPanel);
         }
+        currentPanel = panelName;
         cardLayout.show(mainPanel, panelName);
         mainPanel.revalidate();
         mainPanel.repaint();
@@ -125,12 +152,17 @@ public class MainFrame extends JFrame {
      * Önceki ekrana geri dönebilme özelliği
      */
     private void goBack() {
-        if (!panelHistory.isEmpty()) {
-            String previousPanel = panelHistory.pop();
-            cardLayout.show(mainPanel, previousPanel);
-            mainPanel.revalidate();
-            mainPanel.repaint();
+        if (panelHistory.isEmpty()) return;
+        String previous = panelHistory.pop();
+        currentPanel = previous;
+        if (LOGIN_PANEL.equals(previous)) {
+            currentPatientSsn = null;
+            currentDoctorSsn = null;
+            panelHistory.clear();
         }
+        cardLayout.show(mainPanel, previous);
+        mainPanel.revalidate();
+        mainPanel.repaint();
     }
 
     /**

@@ -138,6 +138,20 @@ public class PatientDAO {
 	}
 	
 
+    public boolean tryUpdateAddress(int patientId, String newAddress) {
+        if (patientId <= 0 || newAddress == null || newAddress.trim().isEmpty()) return false;
+        String sql = "UPDATE Patient SET Address = ? WHERE SSN = ?";
+        try (Connection con = DatabaseManager.getConnection();
+             PreparedStatement stmt = con.prepareStatement(sql)) {
+            stmt.setString(1, newAddress.trim());
+            stmt.setInt(2, patientId);
+            return stmt.executeUpdate() == 1;
+        } catch (SQLException ex) {
+            System.err.println("Patient address update failed: " + ex.getMessage());
+            return false;
+        }
+    }
+
 	public boolean checkPatientLogin(int patient_SSN, String name, String surname) 
 	{
 		try (Connection con = DatabaseManager.getConnection();

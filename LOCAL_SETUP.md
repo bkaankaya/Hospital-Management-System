@@ -11,3 +11,5 @@ This project is a Java Swing desktop application backed by MySQL. It does not us
 Existing versions stay pinned to the values in the repository's `pom.xml.bak`: MySQL Connector/J 8.2.0, Maven Compiler Plugin 3.11.0, Maven Shade Plugin 3.4.1, application 2.0.0.
 
 **Known limitations:** The legacy SSN fields are Java `int`, so 11-digit identifiers are not supported by the old forms; they need an explicit coordinated migration before use. The legacy login accepts identity fields without a password. Use only synthetic/local development data until authentication and full database tests are completed.
+
+For the administrator insert menu, configure a local `HOSPITAL_ADMIN_PASSWORD` environment variable with 12+ characters before launching. This password is not an API key, is never stored in GitHub, and has no default value. Patient and doctor login continue to use the legacy local identity fields.
