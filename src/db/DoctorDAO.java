@@ -20,7 +20,7 @@ public class DoctorDAO {
 		//automatically closes resources
 		try (Connection con = DatabaseManager.getConnection();
 			Statement st = con.createStatement() ){
-			String query = "insert into doctor values (?, ?, ?, ?, ?, ?, ?)";
+			String query = "INSERT INTO Doctor (SSN, Name, Surname, Gender, Address, Date_Of_Birth, Department_Name) VALUES (?, ?, ?, ?, ?, ?, ?)";
 		try	(PreparedStatement pst = con.prepareStatement(query) ){
 			pst.setInt(1, doc.getSSN());
 			pst.setString(2, doc.getName());

@@ -1,0 +1,23 @@
+name: Hospital Java compile and smoke
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compile-and-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Compile existing Java sources without downloading project dependencies
+        run: |
+          mkdir -p build/classes build/test-classes
+          javac --release 11 -encoding UTF-8 -d build/classes src/db/*.java
+          javac --release 11 -encoding UTF-8 -cp build/classes -d build/test-classes test/db/SmokeTest.java
+      - name: Run dependency-free smoke test
+        run: java -Djava.awt.headless=true -cp build/classes:build/test-classes db.SmokeTest
