@@ -55,34 +55,28 @@ public class MedicineDAO {
 	 * and some of medicine_barcode numbers (doesn't have to make sense)
 	 * cubric: avg, count, union, sum
 	 */
-	public ArrayList<String> getStatistics(String department_name){
-		   ArrayList<String> list = new ArrayList<String>() ;
-		   try (Connection con = DatabaseManager.getConnection();
-				Statement st = con.createStatement() ){
-				String query = "select 'average', avg(medicine_count) from\r\n"
-						+ "	(select COUNT(*) as medicine_count from medicine\r\n"
-						+ "	where department_name = ?\r\n"
-						+ "	group by medicine_name having count(*)> 0) as subquery\r\n"
-						+ "	union\r\n"
-						+ "	select 'sum', sum(Barcode_No) from medicine\r\n"
-						+ "	where department_name = ?";
-				try	(PreparedStatement pst = con.prepareStatement(query) ){
-				pst.setString(1, department_name);
-				pst.setString(2, department_name);
-					ResultSet set = pst.executeQuery();
-					while(set.next() ) 
-						{
-							String value = set.getString(2);
-							list.add(value);
-						}
-			return list;	
-		}
-		}catch (SQLException e) {
-			System.out.println("Sql Error.");
-			e.printStackTrace(System.out);
-		}
-		return null;	
-	}
+	public ArrayList<String> getStatistics(String department_name) {
+        ArrayList<String> stats = new ArrayList<>();
+        String sql = "SELECT (SELECT AVG(medicine_count) FROM "
+                + "(SELECT COUNT(*) AS medicine_count FROM medicine "
+                + "WHERE Department_Name = ? GROUP BY Medicine_Name) grouped) AS avg_count, "
+                + "(SELECT SUM(Barcode_No) FROM medicine WHERE Department_Name = ?) AS barcode_sum";
+        try (Connection con = DatabaseManager.getConnection();
+             PreparedStatement stmt = con.prepareStatement(sql)) {
+            stmt.setString(1, department_name);
+            stmt.setString(2, department_name);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    stats.add(rs.getString("avg_count"));
+                    stats.add(rs.getString("barcode_sum"));
+                }
+            }
+            return stats;
+        } catch (SQLException ex) {
+            System.err.println("Medicine statistics failed: " + ex.getMessage());
+            return null;
+        }
+    }
 public static void main(String args[]) {
 	MedicineDAO dao = new MedicineDAO();
 	System.out.println(dao.getStatistics("Diagnostics").toString() );
