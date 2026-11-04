@@ -20,6 +20,7 @@ jobs:
       HOSPITAL_DB_URL: jdbc:mysql://127.0.0.1:3306/hospital?useSSL=false&allowPublicKeyRetrieval=true
       HOSPITAL_DB_USER: root
       HOSPITAL_DB_PASSWORD: ci-local-only-password
+      HOSPITAL_DATA_KEY_BASE64: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4

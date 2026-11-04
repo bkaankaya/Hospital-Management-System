@@ -1,7 +1,6 @@
 package db;
 /*
  * PatientDAO.java
- * Author: Eyup Celen
  */
 import java.sql.Connection;
 import java.sql.PreparedStatement;

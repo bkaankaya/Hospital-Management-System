@@ -1,7 +1,6 @@
 package db;
 /*
  * RoomDAO.java
- * Author: Eyup Celen
  * This class is not used in GUI applications
  */
 import java.sql.Connection;

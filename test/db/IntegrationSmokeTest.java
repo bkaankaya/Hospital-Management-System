@@ -107,10 +107,13 @@ public final class IntegrationSmokeTest {
                 new MedicalRecords("Synthetic prescription", "Synthetic diagnosis", patientId),
                 appointment);
         try (Connection con = DatabaseManager.getConnection();
-             PreparedStatement stmt = con.prepareStatement("SELECT COUNT(*) FROM Medical_Records WHERE Patient_SSN = ?")) {
+             PreparedStatement stmt = con.prepareStatement("SELECT Prescription, Diagnosis FROM Medical_Records WHERE Patient_SSN = ?")) {
             stmt.setInt(1, patientId);
             try (ResultSet rs = stmt.executeQuery()) {
-                require(rs.next() && rs.getInt(1) == 1, "Medical record transaction failed");
+                require(rs.next(), "Medical record transaction failed");
+                require(rs.getString(1).startsWith("enc:v1:"), "Prescription not encrypted");
+                require("Synthetic prescription".equals(SecurityManager.decryptMedicalText(rs.getString(1))), "Medical decryption mismatch");
+                require(rs.getString(2).startsWith("enc:v1:"), "Diagnosis not encrypted");
             }
         }
         System.out.println("Hospital MySQL integration smoke tests passed");

@@ -25,11 +25,15 @@ public final class SmokeTest {
         String hash = SecurityManager.hashPassword("test-password", salt);
         require(hash.equals(SecurityManager.hashPassword("test-password", salt)),
                 "Password hashing should be stable for the same salt");
+        require(hash.startsWith("pbkdf2-sha256$600000$"), "Insecure password hash");
+        require(SecurityManager.verifyPassword("test-password".toCharArray(), hash, salt), "Correct password rejected");
+        require(!SecurityManager.verifyPassword("wrong".toCharArray(), hash, salt), "Incorrect password accepted");
         require(!hash.equals(SecurityManager.hashPassword("different", salt)),
                 "Different passwords should hash differently");
 
         String key = "0123456789abcdef";
         String cipher = SecurityManager.encryptSensitiveData("smoke", key);
+        require(cipher.startsWith("enc:v1:"), "Expected AES-GCM format");
         require("smoke".equals(SecurityManager.decryptSensitiveData(cipher, key)),
                 "Legacy encryption round trip failed");
 

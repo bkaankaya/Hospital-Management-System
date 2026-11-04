@@ -1,7 +1,6 @@
 package db;
 /*
  * MedicalRecordsDAO.java
- * Author: Eyup Celen
  * This class is not used in GUI applications
  */
 import java.sql.Connection;
@@ -24,8 +23,8 @@ public class MedicalRecordsDAO {
             try {
                 int recordId;
                 try (PreparedStatement insert = con.prepareStatement(recordSql, Statement.RETURN_GENERATED_KEYS)) {
-                    insert.setString(1, record.Prescription);
-                    insert.setString(2, record.Diagnosis);
+                    insert.setString(1, SecurityManager.encryptMedicalText(record.Prescription));
+                    insert.setString(2, SecurityManager.encryptMedicalText(record.Diagnosis));
                     insert.setInt(3, record.Patient_SSN);
                     if (insert.executeUpdate() != 1) {
                         throw new SQLException("Medical record insert affected no rows");
