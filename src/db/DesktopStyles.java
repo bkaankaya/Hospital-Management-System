@@ -42,7 +42,9 @@ public final class DesktopStyles {
         Border edge = BorderFactory.createLineBorder(LINE);
         card.setBorder(BorderFactory.createCompoundBorder(edge,
                 BorderFactory.createEmptyBorder(24, 26, 24, 26)));
-        card.add(body, BorderLayout.CENTER);
+        // Keep forms and action buttons at their preferred height, not stretched
+        // to occupy the entire desktop window.
+        card.add(body, BorderLayout.NORTH);
         GridBagConstraints c = new GridBagConstraints();
         c.gridx = 0;
         c.gridy = 0;

@@ -35,6 +35,7 @@ public class MainFrame extends JFrame {
     private Integer currentPatientSsn;
     private Integer currentDoctorSsn;
     private AccessPolicy.Role currentRole = AccessPolicy.Role.NONE;
+    private InsertDoctorPanel insertDoctorPanel;
     private AppointmentPanel appointmentPanel;
     private CancelAppointmentPanel cancelAppointmentPanel;
 
@@ -80,7 +81,8 @@ public class MainFrame extends JFrame {
         // Panelleri oluştur ve ekle
         mainPanel.add(new LoginPanel(this), LOGIN_PANEL);
         mainPanel.add(new InsertMenuPanel(this), INSERT_MENU_PANEL);
-        mainPanel.add(new InsertDoctorPanel(this), INSERT_DOCTOR_PANEL);
+        insertDoctorPanel = new InsertDoctorPanel(this);
+        mainPanel.add(insertDoctorPanel, INSERT_DOCTOR_PANEL);
         mainPanel.add(new InsertPatientPanel(this), INSERT_PATIENT_PANEL);
         mainPanel.add(new DoctorDashboardPanel(this), DOCTOR_DASHBOARD_PANEL);
         mainPanel.add(new DoctorUpdatePanel(this), DOCTOR_UPDATE_PANEL);
@@ -127,6 +129,7 @@ public class MainFrame extends JFrame {
             panelHistory.push(currentPanel);
         }
         currentPanel = panelName;
+        if (INSERT_DOCTOR_PANEL.equals(panelName) && insertDoctorPanel != null) insertDoctorPanel.refreshDepartments();
         if (APPOINTMENT_PANEL.equals(panelName) && appointmentPanel != null) appointmentPanel.refresh();
         if (CANCEL_APPOINTMENT_PANEL.equals(panelName) && cancelAppointmentPanel != null) cancelAppointmentPanel.refresh();
         cardLayout.show(mainPanel, panelName);

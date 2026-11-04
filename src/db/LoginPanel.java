@@ -20,6 +20,7 @@ public class LoginPanel extends JPanel {
         this.mainFrame = mainFrame;
         setLayout(new BorderLayout());
         tabs.setFont(new Font("SansSerif", Font.BOLD, 14));
+        tabs.setBackground(Color.WHITE);
         tabs.addTab("Patient", identityTab(false));
         tabs.addTab("Doctor", identityTab(true));
         tabs.addTab("Administrator", adminTab());
@@ -38,7 +39,8 @@ public class LoginPanel extends JPanel {
         DesktopStyles.row(form, 2, "Last name", last);
 
         JPanel section = new JPanel(new BorderLayout(0, 14));
-        section.setOpaque(false);
+        section.setBackground(Color.WHITE);
+        section.setOpaque(true);
         JLabel help = new JLabel("Legacy local identity lookup; no password protection.");
         help.setForeground(DesktopStyles.MUTED);
         section.add(help, BorderLayout.NORTH);
@@ -121,7 +123,8 @@ public class LoginPanel extends JPanel {
         footer.add(submit, BorderLayout.NORTH);
         footer.add(status, BorderLayout.SOUTH);
         JPanel section = new JPanel(new BorderLayout(0, 18));
-        section.setOpaque(false);
+        section.setBackground(Color.WHITE);
+        section.setOpaque(true);
         section.add(form, BorderLayout.CENTER);
         section.add(footer, BorderLayout.SOUTH);
 

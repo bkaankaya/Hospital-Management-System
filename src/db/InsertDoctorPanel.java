@@ -2,200 +2,151 @@ package db;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.*;
-import java.text.SimpleDateFormat;
-import java.util.Date;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
+import java.util.List;
+import java.util.concurrent.ExecutionException;
 
+/** Java Swing-only doctor registration form with async department loading. */
 public class InsertDoctorPanel extends JPanel {
-    private MainFrame mainFrame;
-    private JTextField inputssnd, inputnamed, inputsurnamed;
-    private JTextArea inputaddressd;
-    private JComboBox<String> inputgenderd, inputdnd;
-    private JTextField inputdobd; // Doğum tarihi için input alanı
+    private final MainFrame mainFrame;
+    private final JTextField id = DesktopStyles.textField("Legacy doctor ID");
+    private final JTextField first = DesktopStyles.textField("Doctor first name");
+    private final JTextField last = DesktopStyles.textField("Doctor last name");
+    private final JComboBox<String> gender = new JComboBox<>(new String[] {"Female", "Male", "Other"});
+    private final JTextField address = DesktopStyles.textField("Doctor address");
+    private final JTextField birth = DesktopStyles.textField("Doctor date of birth YYYY-MM-DD");
+    private final JComboBox<String> departments = new JComboBox<>();
+    private final JButton save = DesktopStyles.button("Register doctor", true);
+    private final JLabel status = new JLabel("Select an existing department.");
+    private int refreshGeneration;
 
     public InsertDoctorPanel(MainFrame mainFrame) {
         this.mainFrame = mainFrame;
+        setLayout(new BorderLayout());
+        JPanel form = new JPanel(new GridBagLayout());
+        form.setOpaque(false);
+        DesktopStyles.row(form, 0, "Numeric ID", id);
+        DesktopStyles.row(form, 1, "First name", first);
+        DesktopStyles.row(form, 2, "Last name", last);
+        DesktopStyles.row(form, 3, "Gender", gender);
+        DesktopStyles.row(form, 4, "Address", address);
+        DesktopStyles.row(form, 5, "Date of birth", birth);
+        DesktopStyles.row(form, 6, "Department", departments);
 
-        // GridBagLayout ile düzgün bir düzen oluştur
-        setLayout(new GridBagLayout());
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(10, 10, 10, 10); // Daha iyi bir aralık için
-        gbc.fill = GridBagConstraints.HORIZONTAL;
+        JButton back = DesktopStyles.button("Back to administration", false);
+        back.addActionListener(e -> mainFrame.showPanel(MainFrame.INSERT_MENU_PANEL));
+        save.addActionListener(e -> register());
+        save.setEnabled(false);
+        JPanel buttons = new JPanel(new GridLayout(1, 2, 12, 0));
+        buttons.setOpaque(false);
+        buttons.add(back);
+        buttons.add(save);
+        JPanel footer = new JPanel(new BorderLayout(0, 12));
+        footer.setOpaque(false);
+        status.setForeground(DesktopStyles.MUTED);
+        footer.add(status, BorderLayout.NORTH);
+        footer.add(buttons, BorderLayout.SOUTH);
+        JPanel content = new JPanel(new BorderLayout(0, 14));
+        content.setOpaque(false);
+        content.add(form, BorderLayout.CENTER);
+        content.add(footer, BorderLayout.SOUTH);
+        add(DesktopStyles.page("Register a doctor",
+                "Keep existing departments and numeric ID schema", content),
+                BorderLayout.CENTER);
+    }
 
-        // Başlık
-        JLabel title = new JLabel("INSERT DOCTOR");
-        title.setFont(new Font("Trebuchet MS", Font.BOLD, 18));
-        gbc.gridwidth = 2;
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        add(title, gbc);
-
-        // SSN Alanı
-        gbc.gridwidth = 1;
-        gbc.gridy++;
-        add(new JLabel("SSN:"), gbc);
-        inputssnd = new JTextField(15);
-        gbc.gridx = 1;
-        add(inputssnd, gbc);
-        inputssnd.addKeyListener(new KeyAdapter() {
-            public void keyTyped(KeyEvent e) {
-                if (!Character.isDigit(e.getKeyChar()) || inputssnd.getText().length() >= 11) {
-                    e.consume();
+    public void refreshDepartments() {
+        final int generation = ++refreshGeneration;
+        departments.removeAllItems();
+        save.setEnabled(false);
+        status.setText("Loading departments...");
+        new SwingWorker<List<String>, Void>() {
+            @Override protected List<String> doInBackground() {
+                return new DepartmentDAO().getDepartmentList();
+            }
+            @Override protected void done() {
+                if (generation != refreshGeneration) return;
+                try {
+                    List<String> values = get();
+                    if (values == null || values.isEmpty()) {
+                        status.setText("No departments found; check the local MySQL database.");
+                        return;
+                    }
+                    for (String value : values) departments.addItem(value);
+                    save.setEnabled(true);
+                    status.setText("Select a department and enter a valid date of birth.");
+                } catch (InterruptedException ex) {
+                    Thread.currentThread().interrupt();
+                    status.setText("Department lookup interrupted.");
+                } catch (ExecutionException ex) {
+                    status.setText("Unable to load departments.");
                 }
             }
-        });
-
-        // Name Alanı
-        gbc.gridx = 0;
-        gbc.gridy++;
-        add(new JLabel("Name:"), gbc);
-        inputnamed = new JTextField(15);
-        gbc.gridx = 1;
-        add(inputnamed, gbc);
-
-        // Surname Alanı
-        gbc.gridx = 0;
-        gbc.gridy++;
-        add(new JLabel("Surname:"), gbc);
-        inputsurnamed = new JTextField(15);
-        gbc.gridx = 1;
-        add(inputsurnamed, gbc);
-
-        // Gender Alanı
-        gbc.gridx = 0;
-        gbc.gridy++;
-        add(new JLabel("Gender:"), gbc);
-        inputgenderd = new JComboBox<>(new String[] { "Male", "Female", "Other" });
-        gbc.gridx = 1;
-        add(inputgenderd, gbc);
-
-        // Address Alanı
-        gbc.gridx = 0;
-        gbc.gridy++;
-        add(new JLabel("Address:"), gbc);
-        inputaddressd = new JTextArea(3, 15);
-        inputaddressd.setLineWrap(true);
-        inputaddressd.setWrapStyleWord(true);
-        JScrollPane scrollPane = new JScrollPane(inputaddressd);
-        gbc.gridx = 1;
-        add(scrollPane, gbc);
-
-        // Date of Birth Alanı (Doğum Tarihi)
-        gbc.gridx = 0;
-        gbc.gridy++;
-        add(new JLabel("Date of Birth:"), gbc);
-        inputdobd = new JTextField(10);
-        inputdobd.setEditable(false); // Kullanıcının manuel girmesini önlemek için
-        gbc.gridx = 1;
-        add(inputdobd, gbc);
-
-        JButton datePickerButton = new JButton("Pick Date");
-        gbc.gridx = 2;
-        add(datePickerButton, gbc);
-        datePickerButton.addActionListener(e -> showDatePicker());
-
-        // Department Alanı
-        gbc.gridx = 0;
-        gbc.gridy++;
-        add(new JLabel("Department:"), gbc);
-        inputdnd = new JComboBox<>();
-        DepartmentDAO deptDao = new DepartmentDAO();
-        java.util.List<String> depts = deptDao.getDepartmentList();
-        if (depts != null) {
-            for (String d : depts) {
-                inputdnd.addItem(d);
-            }
-        }
-        gbc.gridx = 1;
-        add(inputdnd, gbc);
-
-        // Butonlar (ADD, Clear, Back)
-        JPanel buttonPanel = new JPanel();
-        buttonPanel.setLayout(new FlowLayout());
-
-        JButton addButton = new JButton("ADD");
-        addButton.addActionListener(e -> addDoctor());
-        buttonPanel.add(addButton);
-
-        JButton clearButton = new JButton("Clear");
-        clearButton.addActionListener(e -> clearFields());
-        buttonPanel.add(clearButton);
-
-        JButton backButton = new JButton("Back");
-        backButton.addActionListener(e -> mainFrame.showPanel(MainFrame.INSERT_MENU_PANEL));
-        buttonPanel.add(backButton);
-
-        gbc.gridx = 0;
-        gbc.gridy++;
-        gbc.gridwidth = 2;
-        add(buttonPanel, gbc);
-
-        // Paneli yeniden çizerek eklenen bileşenlerin güncellenmesini sağla
-        revalidate();
-        repaint();
+        }.execute();
     }
 
-    /**
-     * JSpinner kullanarak tarih seçme işlemini sağlar.
-     */
-    private void showDatePicker() {
-        JSpinner dateSpinner = new JSpinner(new SpinnerDateModel());
-        JSpinner.DateEditor dateEditor = new JSpinner.DateEditor(dateSpinner, "yyyy-MM-dd");
-        dateSpinner.setEditor(dateEditor);
-
-        int option = JOptionPane.showOptionDialog(
-                null,
-                dateSpinner,
-                "Select Date",
-                JOptionPane.OK_CANCEL_OPTION,
-                JOptionPane.PLAIN_MESSAGE,
-                null,
-                null,
-                null);
-
-        if (option == JOptionPane.OK_OPTION) {
-            Date selectedDate = (Date) dateSpinner.getValue();
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
-            inputdobd.setText(sdf.format(selectedDate));
-        }
-    }
-
-    private void addDoctor() {
-        if (inputssnd.getText().trim().isEmpty() || inputnamed.getText().trim().isEmpty()
-                || inputsurnamed.getText().trim().isEmpty() || inputaddressd.getText().trim().isEmpty()
-                || inputdobd.getText().trim().isEmpty() || inputdnd.getSelectedItem() == null) {
-            JOptionPane.showMessageDialog(this, "Fill in all fields!", "Warning", JOptionPane.WARNING_MESSAGE);
+    private void register() {
+        final int numericId;
+        final LocalDate birthDate;
+        try {
+            numericId = Integer.parseInt(id.getText().trim());
+            if (numericId <= 0) throw new IllegalArgumentException("ID must be positive.");
+        } catch (NumberFormatException ex) {
+            status.setText("The legacy ID must be a positive 32-bit integer.");
+            return;
+        } catch (IllegalArgumentException ex) {
+            status.setText(ex.getMessage());
             return;
         }
         try {
-            int id = Integer.parseInt(inputssnd.getText().trim());
-            Doctor doctor = new Doctor(id, inputnamed.getText().trim(), inputsurnamed.getText().trim(),
-                    (String) inputgenderd.getSelectedItem(), inputaddressd.getText().trim(),
-                    inputdobd.getText().trim(), (String) inputdnd.getSelectedItem());
-            if (new DoctorDAO().tryInsertDoctor(doctor)) {
-                JOptionPane.showMessageDialog(this, "Doctor saved successfully!", "Success",
-                        JOptionPane.INFORMATION_MESSAGE);
-                clearFields();
-                mainFrame.showPanel(MainFrame.INSERT_MENU_PANEL);
-            } else {
-                JOptionPane.showMessageDialog(this, "Doctor was not saved. Check your local database.",
-                        "Save failed", JOptionPane.ERROR_MESSAGE);
+            birthDate = LocalDate.parse(birth.getText().trim());
+            if (birthDate.isAfter(LocalDate.now())) {
+                status.setText("Birth date cannot be in the future.");
+                return;
             }
-        } catch (NumberFormatException ex) {
-            JOptionPane.showMessageDialog(this, "Legacy ID must be a positive 32-bit integer.",
-                    "Invalid ID", JOptionPane.ERROR_MESSAGE);
-        } catch (IllegalArgumentException ex) {
-            JOptionPane.showMessageDialog(this, ex.getMessage(),
-                    "Invalid input", JOptionPane.ERROR_MESSAGE);
+        } catch (DateTimeParseException ex) {
+            status.setText("Date of birth must follow YYYY-MM-DD.");
+            return;
         }
-    }
-
-    private void clearFields() {
-        inputssnd.setText("");
-        inputnamed.setText("");
-        inputsurnamed.setText("");
-        inputaddressd.setText("");
-        inputdobd.setText("");
-        if (inputdnd.getItemCount() > 0) inputdnd.setSelectedIndex(0);
+        String givenName = first.getText().trim();
+        String familyName = last.getText().trim();
+        String location = address.getText().trim();
+        String dept = (String) departments.getSelectedItem();
+        if (givenName.isEmpty() || familyName.isEmpty() || location.isEmpty()
+                || location.length() > 500 || dept == null) {
+            status.setText("Provide a valid name, address (up to 500 characters) and department.");
+            return;
+        }
+        Doctor doctor = new Doctor(numericId, givenName, familyName,
+                (String) gender.getSelectedItem(), location, birthDate.toString(), dept);
+        save.setEnabled(false);
+        status.setText("Saving doctor...");
+        new SwingWorker<Boolean, Void>() {
+            @Override protected Boolean doInBackground() {
+                return new DoctorDAO().tryInsertDoctor(doctor);
+            }
+            @Override protected void done() {
+                save.setEnabled(true);
+                try {
+                    if (get()) {
+                        id.setText("");
+                        first.setText("");
+                        last.setText("");
+                        address.setText("");
+                        birth.setText("");
+                        status.setText("Doctor registered.");
+                        mainFrame.showPanel(MainFrame.INSERT_MENU_PANEL);
+                    } else {
+                        status.setText("Doctor could not be saved (duplicate ID or database error).");
+                    }
+                } catch (InterruptedException ex) {
+                    Thread.currentThread().interrupt();
+                    status.setText("Save interrupted.");
+                } catch (ExecutionException ex) {
+                    status.setText("Save failed.");
+                }
+            }
+        }.execute();
     }
 }
