@@ -161,14 +161,32 @@ public class InsertDoctorPanel extends JPanel {
     }
 
     private void addDoctor() {
-        if (inputssnd.getText().isEmpty() || inputnamed.getText().isEmpty() ||
-                inputsurnamed.getText().isEmpty() || inputaddressd.getText().isEmpty() ||
-                inputdobd.getText().isEmpty() || inputdnd.getSelectedItem() == null) {
-            JOptionPane.showMessageDialog(null, "Fill in all fields!", "Warning", JOptionPane.WARNING_MESSAGE);
-        } else {
-            JOptionPane.showMessageDialog(null, "Doctor Added Successfully!", "Success",
-                    JOptionPane.INFORMATION_MESSAGE);
-            mainFrame.showPanel(MainFrame.INSERT_MENU_PANEL);
+        if (inputssnd.getText().trim().isEmpty() || inputnamed.getText().trim().isEmpty()
+                || inputsurnamed.getText().trim().isEmpty() || inputaddressd.getText().trim().isEmpty()
+                || inputdobd.getText().trim().isEmpty() || inputdnd.getSelectedItem() == null) {
+            JOptionPane.showMessageDialog(this, "Fill in all fields!", "Warning", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        try {
+            int id = Integer.parseInt(inputssnd.getText().trim());
+            Doctor doctor = new Doctor(id, inputnamed.getText().trim(), inputsurnamed.getText().trim(),
+                    (String) inputgenderd.getSelectedItem(), inputaddressd.getText().trim(),
+                    inputdobd.getText().trim(), (String) inputdnd.getSelectedItem());
+            if (new DoctorDAO().tryInsertDoctor(doctor)) {
+                JOptionPane.showMessageDialog(this, "Doctor saved successfully!", "Success",
+                        JOptionPane.INFORMATION_MESSAGE);
+                clearFields();
+                mainFrame.showPanel(MainFrame.INSERT_MENU_PANEL);
+            } else {
+                JOptionPane.showMessageDialog(this, "Doctor was not saved. Check your local database.",
+                        "Save failed", JOptionPane.ERROR_MESSAGE);
+            }
+        } catch (NumberFormatException ex) {
+            JOptionPane.showMessageDialog(this, "Legacy ID must be a positive 32-bit integer.",
+                    "Invalid ID", JOptionPane.ERROR_MESSAGE);
+        } catch (IllegalArgumentException ex) {
+            JOptionPane.showMessageDialog(this, ex.getMessage(),
+                    "Invalid input", JOptionPane.ERROR_MESSAGE);
         }
     }
 
@@ -178,6 +196,6 @@ public class InsertDoctorPanel extends JPanel {
         inputsurnamed.setText("");
         inputaddressd.setText("");
         inputdobd.setText("");
-        inputdnd.setSelectedIndex(0);
+        if (inputdnd.getItemCount() > 0) inputdnd.setSelectedIndex(0);
     }
 }

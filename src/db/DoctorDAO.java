@@ -38,7 +38,27 @@ public class DoctorDAO {
 	}
 	
 		
-	// returns Doctor object using primary key SSN
+	// Explicit write outcome for UI forms; original insertDoctor API remains unchanged.
+    public boolean tryInsertDoctor(Doctor doctor) {
+        if (doctor == null) return false;
+        String sql = "INSERT INTO Doctor (SSN, Name, Surname, Gender, Address, Date_Of_Birth, Department_Name) VALUES (?, ?, ?, ?, ?, ?, ?)";
+        try (Connection con = DatabaseManager.getConnection();
+             PreparedStatement stmt = con.prepareStatement(sql)) {
+            stmt.setInt(1, doctor.getSSN());
+            stmt.setString(2, doctor.getName());
+            stmt.setString(3, doctor.getSurname());
+            stmt.setString(4, doctor.getGender());
+            stmt.setString(5, doctor.getAddress());
+            stmt.setString(6, doctor.getDateOfBirthAsString());
+            stmt.setString(7, doctor.getDepartmentName());
+            return stmt.executeUpdate() == 1;
+        } catch (SQLException ex) {
+            System.err.println("Doctor insert failed: " + ex.getMessage());
+            return false;
+        }
+    }
+
+    // returns Doctor object using primary key SSN
 	public Doctor getDoctorInformation(int Ssn) 
 	{
 		Doctor doc = new Doctor();

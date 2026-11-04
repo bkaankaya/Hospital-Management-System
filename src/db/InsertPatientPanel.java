@@ -82,9 +82,31 @@ public class InsertPatientPanel extends JPanel {
                 JOptionPane.showMessageDialog(null, "Fill in all the blanks to continue!", "Warning",
                         JOptionPane.WARNING_MESSAGE);
             } else {
-                // Hasta ekleme işlemi; DAO çağrısı burada yapılmalı.
-                JOptionPane.showMessageDialog(null, "SUCCESSFUL!", "SUCCESSFUL", JOptionPane.INFORMATION_MESSAGE);
-                mainFrame.showPanel(MainFrame.INSERT_MENU_PANEL);
+                try {
+                    int id = Integer.parseInt(inputssnp.getText().trim());
+                    java.time.LocalDate.parse(inputdobp.getText().trim());
+                    if (id <= 0) throw new IllegalArgumentException("ID must be positive.");
+                    Patient patient = new Patient(id, inputnamep.getText().trim(),
+                            inputsurnamep.getText().trim(), inputgenderp.getText().trim(),
+                            inputaddressp.getText().trim(), inputdobp.getText().trim());
+                    if (new PatientDAO().tryInsertPatient(patient)) {
+                        JOptionPane.showMessageDialog(this, "Patient saved successfully!", "Success",
+                                JOptionPane.INFORMATION_MESSAGE);
+                        mainFrame.showPanel(MainFrame.INSERT_MENU_PANEL);
+                    } else {
+                        JOptionPane.showMessageDialog(this, "Patient was not saved. Check your local database.",
+                                "Save failed", JOptionPane.ERROR_MESSAGE);
+                    }
+                } catch (NumberFormatException ex) {
+                    JOptionPane.showMessageDialog(this, "Legacy ID must be a positive 32-bit integer.",
+                            "Invalid ID", JOptionPane.ERROR_MESSAGE);
+                } catch (java.time.format.DateTimeParseException ex) {
+                    JOptionPane.showMessageDialog(this, "Date must be YYYY-MM-DD.",
+                            "Invalid date", JOptionPane.ERROR_MESSAGE);
+                } catch (IllegalArgumentException ex) {
+                    JOptionPane.showMessageDialog(this, ex.getMessage(),
+                            "Invalid input", JOptionPane.ERROR_MESSAGE);
+                }
             }
         });
 

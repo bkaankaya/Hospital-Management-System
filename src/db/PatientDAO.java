@@ -36,7 +36,26 @@ public class PatientDAO {
 			}
 	}
 	
-	// returns Patient object using Ssn as parameter
+	// Explicit write outcome for UI forms; original insertPatient API remains unchanged.
+    public boolean tryInsertPatient(Patient patient) {
+        if (patient == null) return false;
+        String sql = "INSERT INTO Patient (SSN, Name, Surname, Gender, Address, Date_Of_Birth) VALUES (?, ?, ?, ?, ?, ?)";
+        try (Connection con = DatabaseManager.getConnection();
+             PreparedStatement stmt = con.prepareStatement(sql)) {
+            stmt.setInt(1, patient.SSN);
+            stmt.setString(2, patient.Name);
+            stmt.setString(3, patient.Surname);
+            stmt.setString(4, patient.Gender);
+            stmt.setString(5, patient.Address);
+            stmt.setString(6, patient.Date_Of_Birth);
+            return stmt.executeUpdate() == 1;
+        } catch (SQLException ex) {
+            System.err.println("Patient insert failed: " + ex.getMessage());
+            return false;
+        }
+    }
+
+    // returns Patient object using Ssn as parameter
 	public Patient getPatient(int Ssn) 
 	{
 		Patient p = new Patient();
