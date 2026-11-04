@@ -11,6 +11,8 @@ import java.util.concurrent.ExecutionException;
 public class InsertDoctorPanel extends JPanel {
     private final MainFrame mainFrame;
     private final JTextField id = DesktopStyles.textField("Legacy doctor ID");
+    private final JTextField nationalId = DesktopStyles.textField("11-digit national ID");
+    private final JPasswordField initialPassword = new JPasswordField(20);
     private final JTextField first = DesktopStyles.textField("Doctor first name");
     private final JTextField last = DesktopStyles.textField("Doctor last name");
     private final JComboBox<String> gender = new JComboBox<>(new String[] {"Female", "Male", "Other"});
@@ -33,6 +35,9 @@ public class InsertDoctorPanel extends JPanel {
         DesktopStyles.row(form, 4, "Address", address);
         DesktopStyles.row(form, 5, "Date of birth", birth);
         DesktopStyles.row(form, 6, "Department", departments);
+        DesktopStyles.styleInput(initialPassword, "New account password");
+        DesktopStyles.row(form, 7, "11-digit ID", nationalId);
+        DesktopStyles.row(form, 8, "Initial password", initialPassword);
 
         JButton back = DesktopStyles.button("Back to administration", false);
         back.addActionListener(e -> mainFrame.showPanel(MainFrame.INSERT_MENU_PANEL));
@@ -52,7 +57,7 @@ public class InsertDoctorPanel extends JPanel {
         content.add(form, BorderLayout.CENTER);
         content.add(footer, BorderLayout.SOUTH);
         add(DesktopStyles.page("Register a doctor",
-                "Keep existing departments and numeric ID schema", content),
+                "Assign a password and a separate 11-digit identifier to this doctor.", content),
                 BorderLayout.CENTER);
     }
 
@@ -118,13 +123,28 @@ public class InsertDoctorPanel extends JPanel {
             status.setText("Provide a valid name, address (up to 500 characters) and department.");
             return;
         }
+        String national = nationalId.getText().trim();
+        if (!SecureAccounts.validNationalId(national)) {
+            status.setText("National ID must contain exactly 11 digits.");
+            return;
+        }
+        final char[] password = initialPassword.getPassword();
+        try {
+            SecurityManager.requireStrongPassword(password);
+        } catch (IllegalArgumentException ex) {
+            java.util.Arrays.fill(password, '\0');
+            status.setText(ex.getMessage());
+            return;
+        }
+        initialPassword.setText("");
         Doctor doctor = new Doctor(numericId, givenName, familyName,
                 (String) gender.getSelectedItem(), location, birthDate.toString(), dept);
         save.setEnabled(false);
         status.setText("Saving doctor...");
         new SwingWorker<Boolean, Void>() {
             @Override protected Boolean doInBackground() {
-                return new DoctorDAO().tryInsertDoctor(doctor);
+                try { return SecureAccounts.registerDoctor(doctor, national, password); }
+                finally { java.util.Arrays.fill(password, '\0'); }
             }
             @Override protected void done() {
                 save.setEnabled(true);
@@ -135,6 +155,8 @@ public class InsertDoctorPanel extends JPanel {
                         last.setText("");
                         address.setText("");
                         birth.setText("");
+                        nationalId.setText("");
+                        initialPassword.setText("");
                         status.setText("Doctor registered.");
                         mainFrame.showPanel(MainFrame.INSERT_MENU_PANEL);
                     } else {

@@ -10,6 +10,8 @@ import java.util.concurrent.ExecutionException;
 public class InsertPatientPanel extends JPanel {
     private final MainFrame mainFrame;
     private final JTextField id = DesktopStyles.textField("Legacy patient ID");
+    private final JTextField nationalId = DesktopStyles.textField("11-digit national ID");
+    private final JPasswordField initialPassword = new JPasswordField(20);
     private final JTextField first = DesktopStyles.textField("Patient first name");
     private final JTextField last = DesktopStyles.textField("Patient last name");
     private final JComboBox<String> gender = new JComboBox<>(new String[] {"Female", "Male", "Other"});
@@ -29,6 +31,9 @@ public class InsertPatientPanel extends JPanel {
         DesktopStyles.row(fields, 3, "Gender", gender);
         DesktopStyles.row(fields, 4, "Address", address);
         DesktopStyles.row(fields, 5, "Date of birth", birth);
+        DesktopStyles.styleInput(initialPassword, "New account password");
+        DesktopStyles.row(fields, 6, "11-digit ID", nationalId);
+        DesktopStyles.row(fields, 7, "Initial password", initialPassword);
 
         JButton back = DesktopStyles.button("Back to administration", false);
         back.addActionListener(e -> mainFrame.showPanel(MainFrame.INSERT_MENU_PANEL));
@@ -47,7 +52,7 @@ public class InsertPatientPanel extends JPanel {
         content.add(fields, BorderLayout.CENTER);
         content.add(footer, BorderLayout.SOUTH);
         add(DesktopStyles.page("Register a patient",
-                "Use fictional records only; legacy numeric IDs do not accept 11-digit values",
+                "Create a credential-protected demo account. Use an internal numeric ID plus an 11-digit identifier.",
                 content), BorderLayout.CENTER);
     }
 
@@ -82,13 +87,28 @@ public class InsertPatientPanel extends JPanel {
             status.setText("Provide name, surname and an address of 1–500 characters.");
             return;
         }
+        String national = nationalId.getText().trim();
+        if (!SecureAccounts.validNationalId(national)) {
+            status.setText("National ID must contain exactly 11 digits.");
+            return;
+        }
+        final char[] password = initialPassword.getPassword();
+        try {
+            SecurityManager.requireStrongPassword(password);
+        } catch (IllegalArgumentException ex) {
+            java.util.Arrays.fill(password, '\0');
+            status.setText(ex.getMessage());
+            return;
+        }
+        initialPassword.setText("");
         Patient patient = new Patient(numericId, givenName, familyName,
                 (String) gender.getSelectedItem(), location, birthDate.toString());
         save.setEnabled(false);
         status.setText("Saving patient...");
         new SwingWorker<Boolean, Void>() {
             @Override protected Boolean doInBackground() {
-                return new PatientDAO().tryInsertPatient(patient);
+                try { return SecureAccounts.registerPatient(patient, national, password); }
+                finally { java.util.Arrays.fill(password, '\0'); }
             }
             @Override protected void done() {
                 save.setEnabled(true);
@@ -99,6 +119,8 @@ public class InsertPatientPanel extends JPanel {
                         last.setText("");
                         address.setText("");
                         birth.setText("");
+                        nationalId.setText("");
+                        initialPassword.setText("");
                         status.setText("Patient registered.");
                         mainFrame.showPanel(MainFrame.INSERT_MENU_PANEL);
                     } else {
