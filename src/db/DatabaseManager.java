@@ -1,85 +1,80 @@
 package db;
 
-import java.io.FileReader;
+import java.io.IOException;
+import java.io.Reader;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Properties;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * Temel veritabanı yöneticisi - Standart JDBC
+ * Existing JDBC/MySQL connection manager.
+ * Environment variables work even if the app is launched outside the checkout.
  */
-public class DatabaseManager {
+public final class DatabaseManager {
     private static final Logger logger = Logger.getLogger(DatabaseManager.class.getName());
-    
-    // Singleton pattern ile thread-safe implementasyon
-    private DatabaseManager() {
-    }
-    
-    /**
-     * Veritabanı bağlantısı oluşturur
-     */
-    public static Connection getConnection() throws SQLException {
-        try {
-            Properties dbProps = loadDatabaseProperties();
-            
-            // Optional local/CI overrides; existing login.properties still works unchanged.
-            String url = System.getenv("HOSPITAL_DB_URL");
-            if (url == null || url.trim().isEmpty()) url = dbProps.getProperty("url");
-            if (url == null || url.trim().isEmpty()) {
-                url = "jdbc:mysql://localhost:3306/hospital?useSSL=true&serverTimezone=UTC";
-            }
 
-            String username = System.getenv("HOSPITAL_DB_USER");
-            if (username == null || username.isEmpty()) username = dbProps.getProperty("username");
-            String password = System.getenv("HOSPITAL_DB_PASSWORD");
-            if (password == null) password = dbProps.getProperty("password");
-            
+    private DatabaseManager() { }
+
+    public static Connection getConnection() throws SQLException {
+        Properties properties = loadDatabaseProperties();
+        String url = override("HOSPITAL_DB_URL", properties.getProperty("url"));
+        String username = override("HOSPITAL_DB_USER",
+                properties.getProperty("username", properties.getProperty("user")));
+        String password = System.getenv("HOSPITAL_DB_PASSWORD");
+        if (password == null) password = properties.getProperty("password");
+
+        if (url == null || !url.startsWith("jdbc:mysql:")) {
+            throw new SQLException("Configure a JDBC MySQL URL in HOSPITAL_DB_URL or src/db/login.properties");
+        }
+        if (username == null || username.trim().isEmpty() || password == null) {
+            throw new SQLException("Configure MySQL username/password in environment variables or login.properties");
+        }
+        try {
             return DriverManager.getConnection(url, username, password);
-        } catch (Exception e) {
-            logger.severe("Veritabanı bağlantı hatası: " + e.getMessage());
-            throw new SQLException("Veritabanı başlatma başarısız", e);
+        } catch (SQLException ex) {
+            // Keep credentials and full connection strings out of diagnostic logs.
+            logger.log(Level.WARNING, "MySQL connection unavailable (SQLState {0})", ex.getSQLState());
+            throw ex;
         }
     }
-    
-    /**
-     * Veritabanı özelliklerini güvenli şekilde yükler
-     */
+
+    private static String override(String name, String fallback) {
+        String environment = System.getenv(name);
+        return environment == null || environment.trim().isEmpty() ? fallback : environment;
+    }
+
     private static Properties loadDatabaseProperties() {
-        Properties props = new Properties();
-        try (FileReader reader = new FileReader("src/db/login.properties")) {
-            props.load(reader);
-            return props;
-        } catch (Exception e) {
-            logger.severe("Login properties dosyası okunamadı: " + e.getMessage());
-            throw new RuntimeException("Konfigürasyon hatası", e);
+        Properties properties = new Properties();
+        Path file = Paths.get("src", "db", "login.properties");
+        if (!Files.isRegularFile(file)) return properties;
+        try (Reader reader = Files.newBufferedReader(file)) {
+            properties.load(reader);
+        } catch (IOException ex) {
+            logger.log(Level.WARNING, "Could not load optional local MySQL configuration file");
         }
+        return properties;
     }
-    
-    /**
-     * Bağlantı durumunu kontrol eder
-     */
+
     public static boolean testConnection() {
-        try (Connection conn = getConnection()) {
-            return conn != null && !conn.isClosed();
-        } catch (SQLException e) {
-            logger.warning("Bağlantı testi başarısız: " + e.getMessage());
+        try (Connection connection = getConnection()) {
+            return !connection.isClosed();
+        } catch (SQLException ex) {
             return false;
         }
     }
-    
-    /**
-     * Uygulama kapanırken çağrılmalı (Geriye Dönük Uyumluluk için bırakıldı)
-     */
+
+    /** Backward-compatible hook for legacy callers. */
     public static void shutdown() {
-        logger.info("Veritabanı yöneticisi kapatıldı");
+        logger.info("JDBC connection manager closed");
     }
-    
-    /**
-     * Pool istatistiklerini döner (Geriye Dönük Uyumluluk)
-     */
+
     public static String getPoolStats() {
-        return "Standart JDBC Modu Kullanımda";
+        return "Standard JDBC mode (no connection pool)";
     }
 }

@@ -1,12 +1,9 @@
-To establish jdbc connectivity, create a properties file
-and rename the file path at DatabaseManager class.
-DAO classes are used to execute queries and updates.
-InsertDoctor_GUI is for creating doctor records.
-InsertPatient_GUI is for creating patient records.
-//*********************
-//Giris class is the menu for patient and doctor login.
-//*********************
-After patient login, PatientPage is opened.
-Patients can create appointment and update their information.
-After doctor login, DoctorPage is opened.
-Patients can cancel appointment and update their information.
+Legacy Java source tree:
+- db/MainFrame.java starts the Swing desktop application.
+- db/LoginPanel.java hosts patient, doctor and administrator sign-in.
+- db/AppointmentPanel.java and db/CancelAppointmentPanel.java manage scheduling.
+- db/*DAO.java performs the original JDBC/MySQL queries.
+- db/DesktopStyles.java provides common responsive Swing components.
+- db/DatabaseManager.java reads local MySQL credentials.
+Tests live in test/db; the Java and MySQL/GUI GitHub Actions workflows run them.
+This is a teaching/demo application. See README.md for setup and security limitations.

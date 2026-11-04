@@ -1,15 +1,14 @@
-# Local setup (existing dependency versions preserved)
+# Local setup — keep the legacy versions
 
-This project is a Java Swing desktop application backed by MySQL. It does not use any API keys.
+This is a Java Swing + JDBC + MySQL **local demonstration**. It requires no API keys.
 
-1. Install JDK 17+ and Apache Maven. Install and start a local MySQL 8.x server.
-2. For a **new empty database only**, apply `db/schema.sql` using your MySQL client. Do not run a schema import over existing production data.
-3. Configure your own local database URL, username and password in `src/db/login.properties`. Do not commit actual credentials. The default code reads this file relative to the repository root.
-4. From the repository root run `mvn -DskipTests package` and then `java -jar target/hospital-management-system-2.0.0.jar`. Windows: run `baslat.bat`.
-5. The CI smoke suite checks Java compilation and pure Java model/security helpers. It does **not** verify MySQL integration or a graphical end-to-end workflow.
+1. Install **JDK 17+**, Maven and local **MySQL 8.x**.
+2. For a **new empty database only**, run `db/schema.sql`. Back up existing data before any schema migration.
+3. Configure local database credentials in `src/db/login.properties` or environment variables `HOSPITAL_DB_URL`, `HOSPITAL_DB_USER`, `HOSPITAL_DB_PASSWORD`. The environment variables can be used even if the properties file is absent.
+4. Set `HOSPITAL_ADMIN_PASSWORD` (12+ characters) for the administrator UI. Do not commit real credentials.
+5. From the repository root run `mvn -DskipTests package` and `java -jar target/hospital-management-system-2.0.0.jar`. On Windows `baslat.bat` builds and starts the same jar.
+6. GitHub CI tests Java compilation, pure Java smoke checks, isolated MySQL integration and the **real Swing UI under Xvfb**; the GUI workflow creates screenshot evidence retained for three days.
 
-Existing versions stay pinned to the values in the repository's `pom.xml.bak`: MySQL Connector/J 8.2.0, Maven Compiler Plugin 3.11.0, Maven Shade Plugin 3.4.1, application 2.0.0.
+Retained versions: MySQL Connector/J **8.2.0**, Maven Compiler Plugin **3.11.0**, Maven Shade Plugin **3.4.1**, application version **2.0.0**, `--release 11`.
 
-**Known limitations:** The legacy SSN fields are Java `int`, so 11-digit identifiers are not supported by the old forms; they need an explicit coordinated migration before use. The legacy login accepts identity fields without a password. Use only synthetic/local development data until authentication and full database tests are completed.
-
-For the administrator insert menu, configure a local `HOSPITAL_ADMIN_PASSWORD` environment variable with 12+ characters before launching. This password is not an API key, is never stored in GitHub, and has no default value. Patient and doctor login continue to use the legacy local identity fields.
+**Security/legacy boundaries:** The existing SSN fields are Java `int`, not 11-digit identity strings. The patient/doctor login only matches numeric ID + name/surname and has no password; do not use real patient data. Administrator login is disabled until a local strong password is provided. Encryption helper functions are not end-to-end protection for the entire database.
