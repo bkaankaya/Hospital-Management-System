@@ -32,7 +32,7 @@ public class DepartmentDAO {
 		ArrayList<String> list = new ArrayList<String>() ;
 		try (Connection con = DatabaseManager.getConnection();
 			Statement st = con.createStatement() ){
-			String query = "select * from department order by department_name asc";
+			String query = "select * from Department order by department_name asc";
 		try (ResultSet set = st.executeQuery(query) ){
 			
 			while(set.next() )
