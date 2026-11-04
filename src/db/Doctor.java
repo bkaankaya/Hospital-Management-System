@@ -48,8 +48,9 @@ public class Doctor {
     }
     
     public void setSSN(int ssn) {
-        if (!SecurityManager.isValidSSN(String.valueOf(ssn))) {
-            throw new IllegalArgumentException("Geçersiz SSN formatı");
+        // This legacy model stores identifiers as int; 11-digit IDs need a separate migration.
+        if (ssn <= 0) {
+            throw new IllegalArgumentException("SSN pozitif olmalıdır");
         }
         this.ssn = ssn;
     }
@@ -81,10 +82,18 @@ public class Doctor {
     }
     
     public void setGender(String gender) {
-        if (gender == null || (!gender.equals("M") && !gender.equals("F"))) {
-            throw new IllegalArgumentException("Cinsiyet M veya F olmalıdır");
+        if (gender == null) {
+            throw new IllegalArgumentException("Cinsiyet boş olamaz");
         }
-        this.gender = gender;
+        String normalized = gender.trim();
+        if (normalized.equalsIgnoreCase("Male")) normalized = "M";
+        else if (normalized.equalsIgnoreCase("Female")) normalized = "F";
+        else if (normalized.equalsIgnoreCase("Other")) normalized = "O";
+        normalized = normalized.toUpperCase(java.util.Locale.ROOT);
+        if (!normalized.equals("M") && !normalized.equals("F") && !normalized.equals("O")) {
+            throw new IllegalArgumentException("Cinsiyet M, F veya O olmalıdır");
+        }
+        this.gender = normalized;
     }
     
     public String getAddress() {

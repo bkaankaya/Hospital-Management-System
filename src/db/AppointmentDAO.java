@@ -114,31 +114,24 @@ public class AppointmentDAO {
 	// returns available appointment times by checking existing appointment records
 	// on parametrized date for the parametrized doctor
 	// !! the use of timeConstraints method might violate database application independce !!
-	public ArrayList<String> getTimeList(int doc_ssn, String date)  
-	{
-		ArrayList<String> timeList = timeConstraints();
-		try (Connection con = DatabaseManager.getConnection();
-			Statement st = con.createStatement() ){
-			String query = "select time from appointment where date='" + date +"' and Doctor_SSN=" + doc_ssn;
-		try (ResultSet set = st.executeQuery(query) ){
-			
-			while(set.next() )
-			{
-				String current_time = set.getString(1);
-				// timeList will contain unbooked times by removing existing times
-				if(timeList.contains(current_time))
-					{
-						timeList.remove(current_time);
-					}
-			}
-			return timeList;
-		}
-		}catch (SQLException e) {
-			System.out.println("Sql Error.");
-			e.printStackTrace(System.out);
-		}
-		return null;
-	}
+	public ArrayList<String> getTimeList(int doc_ssn, String date) {
+        ArrayList<String> timeList = timeConstraints();
+        String sql = "SELECT Time FROM Appointment WHERE Date = ? AND Doctor_SSN = ?";
+        try (Connection con = DatabaseManager.getConnection();
+             PreparedStatement pst = con.prepareStatement(sql)) {
+            pst.setDate(1, java.sql.Date.valueOf(date));
+            pst.setInt(2, doc_ssn);
+            try (ResultSet rows = pst.executeQuery()) {
+                while (rows.next()) {
+                    timeList.remove(rows.getString(1));
+                }
+            }
+            return timeList;
+        } catch (SQLException | IllegalArgumentException e) {
+            System.err.println("Failed to load appointment slots: " + e.getMessage());
+            return null;
+        }
+    }
 
 	private ArrayList<String> timeConstraints(){
 		// Valid appointment times

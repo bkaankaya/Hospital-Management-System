@@ -38,45 +38,34 @@ public class RoomDAO {
 	 * To change the department of a room, create a Room object with the specified room_id
 	 * and set the Department_Name to the desired value. Pass the Room object to this method.
 	 */
-	  	public void updateRoomDepartment(Room room) 
-	{
-		//try with resources
-		//automatically closes resources
-		try (Connection con = DatabaseManager.getConnection();
-			Statement st = con.createStatement() ){
-			String query1 = "select * from Room where Room_ID=" + room.Room_ID;
-			int returnedRow = st.executeUpdate(query1);
-			if(returnedRow==1)
-			{
-				String query2 = "update Room set Department_Name='" + room.Department_Name + "' where Room_ID=" + room.Room_ID;	
-				st.executeUpdate(query2);
-			}
-			} catch (SQLException e) {
-				System.out.println("Sql Error.");
-				e.printStackTrace(System.out);
-			}
-		
-	}
+	  	public void updateRoomDepartment(Room room) {
+        String sql = "UPDATE Room SET Department_Name = ? WHERE Room_ID = ?";
+        try (Connection con = DatabaseManager.getConnection();
+             PreparedStatement pst = con.prepareStatement(sql)) {
+            pst.setString(1, room.Department_Name);
+            pst.setInt(2, room.Room_ID);
+            pst.executeUpdate();
+        } catch (SQLException e) {
+            System.err.println("Failed to update room department: " + e.getMessage());
+        }
+    }
 	
-	  	public ArrayList<String> getRoomList(String dep)  
-		{
-			ArrayList<String> list = new ArrayList<String>() ;
-			try (Connection con = DatabaseManager.getConnection();
-				Statement st = con.createStatement() ){
-				String query = "select * from Room where department_name=" + dep;
-			try (ResultSet set = st.executeQuery(query) ){
-				
-				while(set.next() )
-				{
-					list.add( set.getString(1) );
-				}
-				return list;	
-			}
-			}catch (SQLException e) {
-				System.out.println("Sql Error.");
-				e.printStackTrace(System.out);
-			}
-			return null;
-		}
+	  	public ArrayList<String> getRoomList(String dep) {
+        ArrayList<String> list = new ArrayList<>();
+        String sql = "SELECT Room_ID FROM Room WHERE Department_Name = ? ORDER BY Room_ID";
+        try (Connection con = DatabaseManager.getConnection();
+             PreparedStatement pst = con.prepareStatement(sql)) {
+            pst.setString(1, dep);
+            try (ResultSet rows = pst.executeQuery()) {
+                while (rows.next()) {
+                    list.add(rows.getString(1));
+                }
+            }
+            return list;
+        } catch (SQLException e) {
+            System.err.println("Failed to load rooms: " + e.getMessage());
+            return null;
+        }
+    }
 
 }

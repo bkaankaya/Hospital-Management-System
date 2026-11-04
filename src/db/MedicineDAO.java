@@ -18,7 +18,7 @@ public class MedicineDAO {
 		//automatically closes resources
 		try (Connection con = DatabaseManager.getConnection();
 			Statement st = con.createStatement() ){
-			String query = "insert into medicine values (?, ?, ?)";
+			String query = "insert into medicine (Barcode_No, Medicine_Name, Department_Name, consumed) values (?, ?, ?, ?)";
 		try	(PreparedStatement pst = con.prepareStatement(query) ){
 			pst.setInt(1, med.Barcode_No);
 			pst.setString(2, med.Medicine_Name);
@@ -33,25 +33,23 @@ public class MedicineDAO {
 	}
 	
 	// returns medicine names from department inventory
-	public ArrayList<String> getMedicineList(String department_name){
-		   ArrayList<String> list = new ArrayList<String>() ;
-		try (Connection con = DatabaseManager.getConnection();
-			Statement st = con.createStatement() ){
-			String query = "select distinct medicine_name from medicine where department_name='" + department_name +"'" + "and consumed=0 order by medicine_name";
-		try (ResultSet set = st.executeQuery(query) ){
-			
-			while(set.next() ) 
-			{
-				list.add( set.getString(1) );
-			}
-			return list;	
-		}
-		}catch (SQLException e) {
-			System.out.println("Sql Error.");
-			e.printStackTrace(System.out);
-		}
-		return null;	
-	}
+	public ArrayList<String> getMedicineList(String department_name) {
+        ArrayList<String> list = new ArrayList<>();
+        String sql = "SELECT DISTINCT Medicine_Name FROM medicine WHERE Department_Name = ? AND consumed = 0 ORDER BY Medicine_Name";
+        try (Connection con = DatabaseManager.getConnection();
+             PreparedStatement pst = con.prepareStatement(sql)) {
+            pst.setString(1, department_name);
+            try (ResultSet rows = pst.executeQuery()) {
+                while (rows.next()) {
+                    list.add(rows.getString(1));
+                }
+            }
+            return list;
+        } catch (SQLException e) {
+            System.err.println("Failed to load medicines: " + e.getMessage());
+            return null;
+        }
+    }
 
 	/* returns average medicine number by medicine names
 	 * and some of medicine_barcode numbers (doesn't have to make sense)
