@@ -102,40 +102,31 @@ public class PatientDAO {
 	/* patient name like '%like%' 
 	 * cubric : 3 join, outer join, exists, is null, between and, string operation, subquery
 	 */
-	public ArrayList<ArrayList<String>> patientNameLike(String like)  
-	{
-		ArrayList<ArrayList<String>> twoDArrayList = new ArrayList<>();
-		try (Connection con = DatabaseManager.getConnection();  
-			Statement st = con.createStatement() ){
-			String query = "select concat(patient.name,' ',patient.surname) as patient_name, \r\n"
-					+ "appointment.date, appointment.Time, concat(doctor.name,' ',doctor.surname) as doctor_name, Doctor.department_name\r\n"
-					+ "from Patient \r\n"
-					+ "left outer join Appointment on patient.SSN=appointment.Patient_ssn\r\n"
-					+ "right outer join Doctor on Doctor.SSN = Appointment.Doctor_ssn\r\n"
-					+ "join department on Doctor.department_name = department.Department_Name\r\n"
-					+ "where Patient.date_of_birth between '1960-01-01' and '2023-01-01'\r\n"
-					+ "and patient.name like ? and not exists\r\n"
-					+ "(select * from Doctor where name is null)";
-		try (PreparedStatement pst = con.prepareStatement(query) ){
-			pst.setString(1, "%" + like + "%");
-		try	(ResultSet set = pst.executeQuery() ){
-			while(set.next() )
-			{ 
-			ArrayList<String> columnList = new ArrayList<>();
-            for (int j = 1; j <= 5; j++) 
-            	{
-                	columnList.add(set.getString(j));
-            	}
-            twoDArrayList.add(columnList);
-			}
-			return twoDArrayList;	
-		}}
-		}catch (SQLException e) {
-			System.out.println("Sql Error.");
-			e.printStackTrace(System.out);
-		}
-		return null;
-	}
+	public ArrayList<ArrayList<String>> patientNameLike(String like) {
+        ArrayList<ArrayList<String>> rows = new ArrayList<>();
+        String sql = "SELECT CONCAT(p.Name, ' ', p.Surname), a.Date, a.Time, "
+                + "CONCAT(d.Name, ' ', d.Surname), d.Department_Name "
+                + "FROM Patient p LEFT JOIN Appointment a ON a.Patient_SSN = p.SSN "
+                + "LEFT JOIN Doctor d ON d.SSN = a.Doctor_SSN "
+                + "WHERE p.Name LIKE ? OR p.Surname LIKE ? ORDER BY p.Name, p.Surname, a.Date, a.Time";
+        try (Connection con = DatabaseManager.getConnection();
+             PreparedStatement stmt = con.prepareStatement(sql)) {
+            String pattern = "%" + (like == null ? "" : like.trim()) + "%";
+            stmt.setString(1, pattern);
+            stmt.setString(2, pattern);
+            try (ResultSet result = stmt.executeQuery()) {
+                while (result.next()) {
+                    ArrayList<String> row = new ArrayList<>();
+                    for (int n = 1; n <= 5; n++) row.add(result.getString(n));
+                    rows.add(row);
+                }
+            }
+            return rows;
+        } catch (SQLException ex) {
+            System.err.println("Patient search failed: " + ex.getMessage());
+            return null;
+        }
+    }
 	
 
     public boolean tryUpdateAddress(int patientId, String newAddress) {
