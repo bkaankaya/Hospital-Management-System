@@ -1,116 +1,137 @@
 package db;
 
 import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
-/** Doctor-only appointment cancellation with nonblocking database access. */
+/**
+ * Doctor-specific, sortable schedule and protected cancellation screen.
+ * No PII is written to logs, and UI selection never controls an arbitrary SQL clause.
+ */
 public class CancelAppointmentPanel extends JPanel {
     private final MainFrame mainFrame;
-    private final JComboBox<String> appointmentId = new JComboBox<>();
-    private final JLabel status = new JLabel("Select an appointment to cancel.");
+    private final DefaultTableModel model = new DefaultTableModel(
+            new Object[] {"Appointment #", "Date", "Time", "Patient"}, 0) {
+        @Override public boolean isCellEditable(int r, int c) { return false; }
+    };
+    private final JTable table = new JTable(model);
+    private final JLabel status = new JLabel("Sign in as a doctor to manage appointments.");
     private final JButton cancel = DesktopStyles.button("Cancel selected appointment", true);
-    private int refreshGeneration;
+    private final JButton reload = DesktopStyles.button("Refresh", false);
+    private int generation;
 
-    public CancelAppointmentPanel(MainFrame mainFrame) {
-        this.mainFrame = mainFrame;
+    public CancelAppointmentPanel(MainFrame frame) {
+        this.mainFrame = frame;
         setLayout(new BorderLayout());
-        JPanel form = new JPanel(new GridBagLayout());
-        form.setOpaque(false);
-        DesktopStyles.row(form, 0, "Appointment ID", appointmentId);
+        table.setFillsViewportHeight(true);
+        table.setRowHeight(30);
+        table.setAutoCreateRowSorter(true);
+        table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        table.getSelectionModel().addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) cancel.setEnabled(table.getSelectedRow() >= 0);
+        });
+        JScrollPane scroll = new JScrollPane(table);
+        scroll.setPreferredSize(new Dimension(740, 260));
         cancel.setEnabled(false);
-        cancel.addActionListener(e -> cancelAppointment());
+        cancel.addActionListener(e -> cancelSelected());
+
         JButton back = DesktopStyles.button("Back to doctor", false);
-        back.addActionListener(e -> mainFrame.showPanel(MainFrame.DOCTOR_DASHBOARD_PANEL));
-        JPanel actions = new JPanel(new GridLayout(1, 2, 12, 0));
-        actions.setOpaque(false);
-        actions.add(back);
-        actions.add(cancel);
-        JPanel bottom = new JPanel(new BorderLayout(0, 12));
-        bottom.setOpaque(false);
+        back.addActionListener(e -> frame.showPanel(MainFrame.DOCTOR_DASHBOARD_PANEL));
+        reload.addActionListener(e -> refresh());
+        JPanel buttons = new JPanel(new GridLayout(1, 3, 10, 0));
+        buttons.setOpaque(false);
+        buttons.add(back);
+        buttons.add(reload);
+        buttons.add(cancel);
+        JPanel footer = new JPanel(new BorderLayout(0, 12));
+        footer.setOpaque(false);
         status.setForeground(DesktopStyles.MUTED);
-        bottom.add(status, BorderLayout.NORTH);
-        bottom.add(actions, BorderLayout.SOUTH);
-        JPanel content = new JPanel(new BorderLayout(0, 20));
-        content.setOpaque(false);
-        content.add(form, BorderLayout.CENTER);
-        content.add(bottom, BorderLayout.SOUTH);
-        add(DesktopStyles.page("Doctor appointments",
-                "Only appointments belonging to the signed-in doctor may be removed", content),
-                BorderLayout.CENTER);
+        footer.add(status, BorderLayout.NORTH);
+        footer.add(buttons, BorderLayout.SOUTH);
+        JPanel body = new JPanel(new BorderLayout(0, 16));
+        body.setOpaque(false);
+        body.add(scroll, BorderLayout.CENTER);
+        body.add(footer, BorderLayout.SOUTH);
+        add(DesktopStyles.page("Doctor schedule",
+                "Select an upcoming appointment to cancel it", body), BorderLayout.CENTER);
     }
 
     public void refresh() {
-        int generation = ++refreshGeneration;
-        Integer doctorId = mainFrame.getCurrentDoctorSsn();
-        appointmentId.removeAllItems();
+        final Integer doctorId = mainFrame.getCurrentDoctorSsn();
+        final int token = ++generation;
+        model.setRowCount(0);
         cancel.setEnabled(false);
+        reload.setEnabled(false);
         if (doctorId == null) {
-            status.setText("Doctor sign-in required.");
+            status.setText("Doctor sign-in is required.");
+            reload.setEnabled(true);
             return;
         }
-        status.setText("Loading appointments...");
-        new SwingWorker<List<String>, Void>() {
-            @Override protected List<String> doInBackground() {
-                return new AppointmentDAO().getDocAppointments(doctorId);
+        status.setText("Loading your appointments...");
+        new SwingWorker<List<String[]>, Void>() {
+            @Override protected List<String[]> doInBackground() {
+                return new AppointmentDAO().getDoctorUpcomingAppointments(doctorId);
             }
             @Override protected void done() {
-                if (generation != refreshGeneration
-                        || !doctorId.equals(mainFrame.getCurrentDoctorSsn())) return;
+                if (token != generation || !doctorId.equals(mainFrame.getCurrentDoctorSsn())) return;
+                reload.setEnabled(true);
                 try {
-                    List<String> values = get();
-                    if (values == null) {
-                        status.setText("Could not load appointments from MySQL.");
+                    List<String[]> rows = get();
+                    if (rows == null) {
+                        status.setText("Unable to load appointments from MySQL.");
                         return;
                     }
-                    for (String value : values) appointmentId.addItem(value);
-                    cancel.setEnabled(appointmentId.getItemCount() > 0);
-                    status.setText(appointmentId.getItemCount() == 0
-                            ? "No upcoming appointments."
-                            : appointmentId.getItemCount() + " appointment(s) found.");
+                    for (String[] row : rows) model.addRow(row);
+                    status.setText(rows.isEmpty()
+                            ? "No upcoming appointments." : rows.size() + " appointment(s), maximum 100 displayed.");
                 } catch (InterruptedException ex) {
                     Thread.currentThread().interrupt();
-                    status.setText("Appointment lookup interrupted.");
+                    status.setText("Request interrupted.");
                 } catch (ExecutionException ex) {
-                    status.setText("Could not read appointments.");
+                    status.setText("Schedule could not be loaded.");
                 }
             }
         }.execute();
     }
 
-    private void cancelAppointment() {
-        Integer doctorId = mainFrame.getCurrentDoctorSsn();
-        String selected = (String) appointmentId.getSelectedItem();
-        if (doctorId == null || selected == null) {
-            status.setText("Select a valid appointment while signed in as a doctor.");
+    private void cancelSelected() {
+        int index = table.getSelectedRow();
+        final Integer doctorId = mainFrame.getCurrentDoctorSsn();
+        if (doctorId == null || index < 0) {
+            status.setText("Select one of your upcoming appointments.");
             return;
         }
-        final int id;
+        final int appointmentId;
         try {
-            id = Integer.parseInt(selected);
+            appointmentId = Integer.parseInt(String.valueOf(
+                    model.getValueAt(table.convertRowIndexToModel(index), 0)));
         } catch (NumberFormatException ex) {
-            status.setText("Invalid appointment ID.");
+            status.setText("Invalid appointment selection.");
             return;
         }
-        int decision = JOptionPane.showConfirmDialog(this,
-                "Cancel appointment #" + id + "?", "Confirm cancellation",
+        int choice = JOptionPane.showConfirmDialog(this,
+                "Cancel appointment #" + appointmentId + "?", "Confirm cancellation",
                 JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
-        if (decision != JOptionPane.YES_OPTION) return;
+        if (choice != JOptionPane.YES_OPTION) return;
         cancel.setEnabled(false);
-        status.setText("Cancelling appointment...");
+        reload.setEnabled(false);
+        status.setText("Cancelling selected appointment...");
         new SwingWorker<Boolean, Void>() {
             @Override protected Boolean doInBackground() {
-                return new AppointmentDAO().cancelDoctorAppointment(id, doctorId);
+                return new AppointmentDAO().cancelDoctorAppointment(appointmentId, doctorId);
             }
             @Override protected void done() {
+                if (!doctorId.equals(mainFrame.getCurrentDoctorSsn())) return;
                 try {
-                    status.setText(get() ? "Appointment cancelled." : "Cancellation not saved.");
+                    status.setText(get() ? "Appointment cancelled." :
+                            "Cannot cancel: already completed, linked to a record, or unavailable.");
                 } catch (InterruptedException ex) {
                     Thread.currentThread().interrupt();
                     status.setText("Cancellation interrupted.");
                 } catch (ExecutionException ex) {
-                    status.setText("Cancellation could not be completed.");
+                    status.setText("Cancellation failed.");
                 }
                 refresh();
             }
