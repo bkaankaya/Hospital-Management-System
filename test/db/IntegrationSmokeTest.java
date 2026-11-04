@@ -54,6 +54,15 @@ public final class IntegrationSmokeTest {
                         "Persistent login throttling not recorded");
             }
         }
+        // Release the synthetic fixture after testing lockout, so the subsequent
+        // independent Swing GUI flow can authenticate against this disposable DB.
+        try (Connection connection = DatabaseManager.getConnection();
+             PreparedStatement reset = connection.prepareStatement(
+                     "UPDATE Patient SET Failed_Attempts=0, Locked_Until=NULL WHERE SSN=?")) {
+            reset.setInt(1, patientId);
+            require(reset.executeUpdate() == 1, "Fixture lock reset failed");
+        }
+
         // Existing rows must be explicitly enrolled; an unauthenticated legacy lookup never works.
         int legacyId = 1003003;
         Patient legacy = new Patient(legacyId, "Legacy", "Demo",
