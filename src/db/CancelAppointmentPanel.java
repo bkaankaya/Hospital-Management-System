@@ -2,71 +2,118 @@ package db;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.*;
+import java.util.List;
+import java.util.concurrent.ExecutionException;
 
+/** Doctor-only appointment cancellation with nonblocking database access. */
 public class CancelAppointmentPanel extends JPanel {
-    private MainFrame mainFrame;
-    private JComboBox<String> appIdCombo;
+    private final MainFrame mainFrame;
+    private final JComboBox<String> appointmentId = new JComboBox<>();
+    private final JLabel status = new JLabel("Select an appointment to cancel.");
+    private final JButton cancel = DesktopStyles.button("Cancel selected appointment", true);
+    private int refreshGeneration;
 
     public CancelAppointmentPanel(MainFrame mainFrame) {
         this.mainFrame = mainFrame;
-        setLayout(null);
+        setLayout(new BorderLayout());
+        JPanel form = new JPanel(new GridBagLayout());
+        form.setOpaque(false);
+        DesktopStyles.row(form, 0, "Appointment ID", appointmentId);
+        cancel.setEnabled(false);
+        cancel.addActionListener(e -> cancelAppointment());
+        JButton back = DesktopStyles.button("Back to doctor", false);
+        back.addActionListener(e -> mainFrame.showPanel(MainFrame.DOCTOR_DASHBOARD_PANEL));
+        JPanel actions = new JPanel(new GridLayout(1, 2, 12, 0));
+        actions.setOpaque(false);
+        actions.add(back);
+        actions.add(cancel);
+        JPanel bottom = new JPanel(new BorderLayout(0, 12));
+        bottom.setOpaque(false);
+        status.setForeground(DesktopStyles.MUTED);
+        bottom.add(status, BorderLayout.NORTH);
+        bottom.add(actions, BorderLayout.SOUTH);
+        JPanel content = new JPanel(new BorderLayout(0, 20));
+        content.setOpaque(false);
+        content.add(form, BorderLayout.CENTER);
+        content.add(bottom, BorderLayout.SOUTH);
+        add(DesktopStyles.page("Doctor appointments",
+                "Only appointments belonging to the signed-in doctor may be removed", content),
+                BorderLayout.CENTER);
+    }
 
-        JLabel title = new JLabel("Cancel Appointment");
-        title.setFont(new Font("Trebuchet MS", Font.BOLD | Font.ITALIC, 18));
-        title.setBounds(21, 11, 193, 35);
-        add(title);
-
-        JLabel appointmentIdLabel = new JLabel("Appointment ID");
-        appointmentIdLabel.setFont(new Font("Trebuchet MS", Font.BOLD | Font.ITALIC, 18));
-        appointmentIdLabel.setBounds(28, 114, 173, 49);
-        add(appointmentIdLabel);
-
-        appIdCombo = new JComboBox<>();
-        appIdCombo.setBounds(212, 124, 241, 35);
-        add(appIdCombo);
-
-        JButton cancelButton = new JButton("CANCEL");
-        cancelButton.setFont(new Font("Trebuchet MS", Font.BOLD | Font.ITALIC, 18));
-        cancelButton.setBounds(221, 325, 222, 74);
-        add(cancelButton);
-        cancelButton.addActionListener(e -> {
-            if (appIdCombo.getSelectedItem() == null || appIdCombo.getSelectedItem().toString().isEmpty()) {
-                JOptionPane.showMessageDialog(null, "Fill in all the blanks to continue!", "Warning",
-                        JOptionPane.WARNING_MESSAGE);
-            } else {
-                Integer doctorId = mainFrame.getCurrentDoctorSsn();
-                if (doctorId == null) {
-                    JOptionPane.showMessageDialog(this, "Please log in as a doctor.",
-                            "Cancellation denied", JOptionPane.ERROR_MESSAGE);
-                    return;
-                }
-                int appointmentId = Integer.parseInt((String) appIdCombo.getSelectedItem());
-                if (new AppointmentDAO().cancelDoctorAppointment(appointmentId, doctorId)) {
-                    JOptionPane.showMessageDialog(this, "Appointment canceled.", "Success",
-                            JOptionPane.INFORMATION_MESSAGE);
-                    mainFrame.showPanel(MainFrame.DOCTOR_DASHBOARD_PANEL);
-                } else {
-                    JOptionPane.showMessageDialog(this, "Appointment could not be canceled.",
-                            "Cancellation failed", JOptionPane.ERROR_MESSAGE);
-                    refresh();
+    public void refresh() {
+        int generation = ++refreshGeneration;
+        Integer doctorId = mainFrame.getCurrentDoctorSsn();
+        appointmentId.removeAllItems();
+        cancel.setEnabled(false);
+        if (doctorId == null) {
+            status.setText("Doctor sign-in required.");
+            return;
+        }
+        status.setText("Loading appointments...");
+        new SwingWorker<List<String>, Void>() {
+            @Override protected List<String> doInBackground() {
+                return new AppointmentDAO().getDocAppointments(doctorId);
+            }
+            @Override protected void done() {
+                if (generation != refreshGeneration
+                        || !doctorId.equals(mainFrame.getCurrentDoctorSsn())) return;
+                try {
+                    List<String> values = get();
+                    if (values == null) {
+                        status.setText("Could not load appointments from MySQL.");
+                        return;
+                    }
+                    for (String value : values) appointmentId.addItem(value);
+                    cancel.setEnabled(appointmentId.getItemCount() > 0);
+                    status.setText(appointmentId.getItemCount() == 0
+                            ? "No upcoming appointments."
+                            : appointmentId.getItemCount() + " appointment(s) found.");
+                } catch (InterruptedException ex) {
+                    Thread.currentThread().interrupt();
+                    status.setText("Appointment lookup interrupted.");
+                } catch (ExecutionException ex) {
+                    status.setText("Could not read appointments.");
                 }
             }
-        });
-
-        JButton backButton = new JButton("Geri");
-        backButton.setBounds(10, 10, 80, 30);
-        add(backButton);
-        backButton.addActionListener(e -> mainFrame.showPanel(MainFrame.DOCTOR_DASHBOARD_PANEL));
+        }.execute();
     }
-    public void refresh() {
-        appIdCombo.removeAllItems();
+
+    private void cancelAppointment() {
         Integer doctorId = mainFrame.getCurrentDoctorSsn();
-        if (doctorId == null) return;
-        java.util.List<String> ids = new AppointmentDAO().getDocAppointments(doctorId);
-        if (ids != null) {
-            for (String id : ids) appIdCombo.addItem(id);
+        String selected = (String) appointmentId.getSelectedItem();
+        if (doctorId == null || selected == null) {
+            status.setText("Select a valid appointment while signed in as a doctor.");
+            return;
         }
+        final int id;
+        try {
+            id = Integer.parseInt(selected);
+        } catch (NumberFormatException ex) {
+            status.setText("Invalid appointment ID.");
+            return;
+        }
+        int decision = JOptionPane.showConfirmDialog(this,
+                "Cancel appointment #" + id + "?", "Confirm cancellation",
+                JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+        if (decision != JOptionPane.YES_OPTION) return;
+        cancel.setEnabled(false);
+        status.setText("Cancelling appointment...");
+        new SwingWorker<Boolean, Void>() {
+            @Override protected Boolean doInBackground() {
+                return new AppointmentDAO().cancelDoctorAppointment(id, doctorId);
+            }
+            @Override protected void done() {
+                try {
+                    status.setText(get() ? "Appointment cancelled." : "Cancellation not saved.");
+                } catch (InterruptedException ex) {
+                    Thread.currentThread().interrupt();
+                    status.setText("Cancellation interrupted.");
+                } catch (ExecutionException ex) {
+                    status.setText("Cancellation could not be completed.");
+                }
+                refresh();
+            }
+        }.execute();
     }
-
 }
