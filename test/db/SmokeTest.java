@@ -103,6 +103,14 @@ public final class SmokeTest {
             throw new AssertionError("Legacy unscoped cancellation API was callable");
         } catch (UnsupportedOperationException expected) { }
 
+        long active = java.util.concurrent.TimeUnit.MINUTES.toNanos(1);
+        require(!IdleSessionPolicy.isExpired(active, active + java.util.concurrent.TimeUnit.MINUTES.toNanos(14)),
+                "Workstation locked before the idle threshold");
+        require(IdleSessionPolicy.isExpired(active, active + java.util.concurrent.TimeUnit.MINUTES.toNanos(15)),
+                "Workstation did not lock at 15 minutes");
+        require(!IdleSessionPolicy.isExpired(0, java.util.concurrent.TimeUnit.HOURS.toNanos(1)),
+                "Unauthenticated workstation must not show idle timeout");
+
         Room room = new Room(100, "Cardiology");
         require(room.Room_ID == 100, "Room model construction failed");
         System.out.println("Hospital smoke tests passed");

@@ -36,6 +36,9 @@ public class MainFrame extends JFrame {
     private Integer currentPatientSsn;
     private Integer currentDoctorSsn;
     private AccessPolicy.Role currentRole = AccessPolicy.Role.NONE;
+    private long lastUserInputNanos;
+    private java.awt.event.AWTEventListener userInputListener;
+    private javax.swing.Timer inactivityCheck;
     private InsertDoctorPanel insertDoctorPanel;
     private MedicineStatsPanel medicineStatsPanel;
     private AppointmentPanel appointmentPanel;
@@ -47,6 +50,7 @@ public class MainFrame extends JFrame {
         currentPatientSsn = ssn;
         currentDoctorSsn = null;
         currentRole = AccessPolicy.Role.PATIENT;
+        lastUserInputNanos = System.nanoTime();
     }
 
     public void setCurrentDoctorSsn(int ssn) {
@@ -54,12 +58,14 @@ public class MainFrame extends JFrame {
         currentDoctorSsn = ssn;
         currentPatientSsn = null;
         currentRole = AccessPolicy.Role.DOCTOR;
+        lastUserInputNanos = System.nanoTime();
     }
 
     public void setAdminAuthenticated() {
         currentPatientSsn = null;
         currentDoctorSsn = null;
         currentRole = AccessPolicy.Role.ADMIN;
+        lastUserInputNanos = System.nanoTime();
     }
 
     public Integer getCurrentPatientSsn() {
@@ -108,11 +114,46 @@ public class MainFrame extends JFrame {
         // **Uygulama açıldığında giriş ekranını göster**
         showPanel(LOGIN_PANEL);
 
+        // Local workstation idle-lock. This protects the unattended UI only;
+        // a trusted backend must separately enforce any production session.
+        installIdleLock();
+
         // Tema değişimi için dinleyici ekleyelim
         addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
                 saveApplicationState();
+            }
+        });
+    }
+
+    private void installIdleLock() {
+        userInputListener = event -> {
+            if (currentRole == AccessPolicy.Role.NONE) return;
+            Object source = event.getSource();
+            if (source instanceof Component
+                    && SwingUtilities.isDescendingFrom((Component) source, this)) {
+                lastUserInputNanos = System.nanoTime();
+            }
+        };
+        Toolkit.getDefaultToolkit().addAWTEventListener(userInputListener,
+                AWTEvent.KEY_EVENT_MASK | AWTEvent.MOUSE_EVENT_MASK
+                        | AWTEvent.MOUSE_MOTION_EVENT_MASK | AWTEvent.MOUSE_WHEEL_EVENT_MASK);
+        inactivityCheck = new javax.swing.Timer(10000, event -> {
+            if (currentRole != AccessPolicy.Role.NONE
+                    && IdleSessionPolicy.isExpired(lastUserInputNanos, System.nanoTime())) {
+                showPanel(LOGIN_PANEL);
+                JOptionPane.showMessageDialog(this,
+                        "The workstation session expired after 15 minutes without activity. Please sign in again.",
+                        "Session locked", JOptionPane.INFORMATION_MESSAGE);
+            }
+        });
+        inactivityCheck.start();
+        addWindowListener(new WindowAdapter() {
+            @Override public void windowClosed(WindowEvent event) {
+                if (inactivityCheck != null) inactivityCheck.stop();
+                if (userInputListener != null)
+                    Toolkit.getDefaultToolkit().removeAWTEventListener(userInputListener);
             }
         });
     }
