@@ -108,8 +108,8 @@ public final class SmokeTest {
                 "Workstation locked before the idle threshold");
         require(IdleSessionPolicy.isExpired(active, active + java.util.concurrent.TimeUnit.MINUTES.toNanos(15)),
                 "Workstation did not lock at 15 minutes");
-        require(!IdleSessionPolicy.isExpired(0, java.util.concurrent.TimeUnit.HOURS.toNanos(1)),
-                "Unauthenticated workstation must not show idle timeout");
+        require(IdleSessionPolicy.isExpired(0, java.util.concurrent.TimeUnit.HOURS.toNanos(1)),
+                "Monotonic idle detection must not assume a positive nanoTime origin");
 
         Room room = new Room(100, "Cardiology");
         require(room.Room_ID == 100, "Room model construction failed");

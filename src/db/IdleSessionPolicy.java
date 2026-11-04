@@ -11,6 +11,6 @@ public final class IdleSessionPolicy {
     private IdleSessionPolicy() { }
 
     public static boolean isExpired(long lastActivity, long now) {
-        return lastActivity > 0 && now - lastActivity >= TIMEOUT_NANOS;
+        return now - lastActivity >= TIMEOUT_NANOS;
     }
 }
