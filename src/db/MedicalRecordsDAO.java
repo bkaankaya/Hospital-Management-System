@@ -11,81 +11,46 @@ import java.sql.SQLException;
 import java.sql.Statement;
 
 public class MedicalRecordsDAO {
-
-	// With a transaction, inserts values to Add Table
-	// after inserting values to Medical_Records Table
-	
-	public void add_medRecord(MedicalRecords record, Appointment app) throws SQLException
-	{
-		Connection con = DatabaseManager.getConnection();
-		Statement st = con.createStatement();
-	   
-		try {con.setAutoCommit(false);
-			insertRecord(record); // inserts to the Medical_Records Table 						
-			// max(record_no) gives the last record_no
-			String record_query = "select max(record_no) from medical_records";  	 
-	   		// try with resources
-			// automatically closes the ResultSet
-			try (ResultSet set = st.executeQuery(record_query)){;						 
-			set.next();
-			int record_no = set.getInt(1); // gets current record_no
-			// created an AddTable object to insert value to the Add Table
-			Add adder = new Add();
-			adder.Date = app.Date;
-			adder.Time = app.Time;
-			adder.Doctor_SSN = app.Doctor_SSN;
-			adder.Record_No = record_no ;
-			insertToAdd(adder);  // inserts to the Add Table
-			con.commit();		
-	   }
-	   } catch (SQLException e) {
-		 con.rollback();
-		 e.printStackTrace();
-	   } finally {
-		 con.close();
-		 st.close();		 
-	   }
-	}
-		
-	private void insertRecord(MedicalRecords record)
-	{
-	//try with resources
-	//automatically closes resources
-	try (Connection con = DatabaseManager.getConnection();
-		Statement st = con.createStatement() ){
-		String query = "insert into Medical_Records (Prescription, Diagnosis, Patient_SSN) values (?, ?, ?)";
-	try	(PreparedStatement pst = con.prepareStatement(query) ){
-		pst.setString(1, record.Prescription);
-		pst.setString(2, record.Diagnosis);
-		pst.setInt(3, record.Patient_SSN);
-		pst.executeUpdate();
-	}
-	} catch (SQLException e) {
-		System.out.println("Sql Error.");
-		e.printStackTrace(System.out);
-		}
-		
-	}
-	
-	private void insertToAdd (Add adder)
-	{
-	//try with resources
-	//automatically closes resources
-	try (Connection con = DatabaseManager.getConnection();
-		Statement st = con.createStatement() ){
-		String query = "insert into hospital.add values (?, ?, ?, ?)";
-	try	(PreparedStatement pst = con.prepareStatement(query) ){
-		pst.setInt(1, adder.Doctor_SSN);
-		pst.setString(2, adder.Date);
-		pst.setString(3, adder.Time);
-		pst.setInt(4, adder.Record_No);
-		pst.executeUpdate();
-	}
-	} catch (SQLException e) {
-		System.out.println("Sql Error.");
-		e.printStackTrace(System.out);
-		}
-		
-	}
-
+    // Both inserts use the same connection and transaction. Never use MAX(record_no).
+    public void add_medRecord(MedicalRecords record, Appointment appointment) throws SQLException {
+        if (record == null || appointment == null) {
+            throw new IllegalArgumentException("Record and appointment must not be null");
+        }
+        String recordSql = "INSERT INTO Medical_Records (Prescription, Diagnosis, Patient_SSN) VALUES (?, ?, ?)";
+        String linkSql = "INSERT INTO `Add` (Doctor_SSN, Date, Time, Record_No) VALUES (?, ?, ?, ?)";
+        try (Connection con = DatabaseManager.getConnection()) {
+            boolean originalAutoCommit = con.getAutoCommit();
+            con.setAutoCommit(false);
+            try {
+                int recordId;
+                try (PreparedStatement insert = con.prepareStatement(recordSql, Statement.RETURN_GENERATED_KEYS)) {
+                    insert.setString(1, record.Prescription);
+                    insert.setString(2, record.Diagnosis);
+                    insert.setInt(3, record.Patient_SSN);
+                    if (insert.executeUpdate() != 1) {
+                        throw new SQLException("Medical record insert affected no rows");
+                    }
+                    try (ResultSet keys = insert.getGeneratedKeys()) {
+                        if (!keys.next()) throw new SQLException("Generated record ID missing");
+                        recordId = keys.getInt(1);
+                    }
+                }
+                try (PreparedStatement link = con.prepareStatement(linkSql)) {
+                    link.setInt(1, appointment.Doctor_SSN);
+                    link.setString(2, appointment.Date);
+                    link.setString(3, appointment.Time);
+                    link.setInt(4, recordId);
+                    if (link.executeUpdate() != 1) {
+                        throw new SQLException("Medical record linkage affected no rows");
+                    }
+                }
+                con.commit();
+            } catch (SQLException | RuntimeException ex) {
+                con.rollback();
+                throw ex;
+            } finally {
+                con.setAutoCommit(originalAutoCommit);
+            }
+        }
+    }
 }
