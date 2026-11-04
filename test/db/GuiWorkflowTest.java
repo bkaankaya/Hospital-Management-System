@@ -148,9 +148,10 @@ public final class GuiWorkflowTest {
                 JTabbedPane tabs = find(find(frame, LoginPanel.class), JTabbedPane.class);
                 check(tabs != null, "Role tabs missing");
                 tabs.setSelectedIndex(1);
-                JTextField numeric = field("Legacy numeric ID");
-                JTextField first = field("First name");
-                JTextField last = field("Last name");
+                Container doctorForm = (Container) tabs.getSelectedComponent();
+                JTextField numeric = searchField(doctorForm, "Legacy numeric ID");
+                JTextField first = searchField(doctorForm, "First name");
+                JTextField last = searchField(doctorForm, "Last name");
                 check(numeric != null && first != null && last != null,
                         "Doctor identity controls missing");
                 numeric.setText("1001001");
