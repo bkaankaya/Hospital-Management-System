@@ -24,13 +24,17 @@ public class DatabaseManager {
         try {
             Properties dbProps = loadDatabaseProperties();
             
-            String url = dbProps.getProperty("url");
+            // Optional local/CI overrides; existing login.properties still works unchanged.
+            String url = System.getenv("HOSPITAL_DB_URL");
+            if (url == null || url.trim().isEmpty()) url = dbProps.getProperty("url");
             if (url == null || url.trim().isEmpty()) {
                 url = "jdbc:mysql://localhost:3306/hospital?useSSL=true&serverTimezone=UTC";
             }
-            
-            String username = dbProps.getProperty("username");
-            String password = dbProps.getProperty("password");
+
+            String username = System.getenv("HOSPITAL_DB_USER");
+            if (username == null || username.isEmpty()) username = dbProps.getProperty("username");
+            String password = System.getenv("HOSPITAL_DB_PASSWORD");
+            if (password == null) password = dbProps.getProperty("password");
             
             return DriverManager.getConnection(url, username, password);
         } catch (Exception e) {
