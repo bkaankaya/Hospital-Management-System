@@ -35,6 +35,42 @@ public final class IntegrationSmokeTest {
         require(SecureAccounts.authenticate(SecureAccounts.Kind.PATIENT, "90000000001", demoPassword) == patientId, "Patient credential login failed");
         require(SecureAccounts.authenticate(SecureAccounts.Kind.PATIENT, "90000000001", "wrong".toCharArray()) == 0, "Wrong password accepted");
         java.util.Arrays.fill(demoPassword, '\0');
+        // Persistent lockout: five failed password attempts block even the correct secret.
+        char[] goodPassword = "DemoSecurePassword123!".toCharArray();
+        for (int attempt = 0; attempt < 5; attempt++) {
+            require(SecureAccounts.authenticate(SecureAccounts.Kind.PATIENT,
+                    "90000000001", "InvalidPassword123".toCharArray()) == 0,
+                    "Incorrect password should never authenticate");
+        }
+        require(SecureAccounts.authenticate(SecureAccounts.Kind.PATIENT,
+                "90000000001", goodPassword) == 0,
+                "Locked account unexpectedly accepted the correct password");
+        try (Connection connection = DatabaseManager.getConnection();
+             PreparedStatement query = connection.prepareStatement(
+                     "SELECT Failed_Attempts, Locked_Until FROM Patient WHERE SSN = ?")) {
+            query.setInt(1, patientId);
+            try (ResultSet row = query.executeQuery()) {
+                require(row.next() && row.getInt(1) == 5 && row.getTimestamp(2) != null,
+                        "Persistent login throttling not recorded");
+            }
+        }
+        // Existing rows must be explicitly enrolled; an unauthenticated legacy lookup never works.
+        int legacyId = 1003003;
+        Patient legacy = new Patient(legacyId, "Legacy", "Demo",
+                "F", "Test address", "2000-01-01");
+        require(patients.tryInsertPatient(legacy), "Legacy fixture insert failed");
+        require(SecureAccounts.authenticate(SecureAccounts.Kind.PATIENT,
+                "00000000003", goodPassword) == 0,
+                "Unprovisioned legacy row incorrectly authenticated");
+        require(SecureAccounts.enrollExisting(SecureAccounts.Kind.PATIENT,
+                legacyId, "00000000003", goodPassword), "Legacy enrollment failed");
+        require(!SecureAccounts.enrollExisting(SecureAccounts.Kind.PATIENT,
+                legacyId, "00000000003", goodPassword), "Existing password should not be overwritten");
+        require(SecureAccounts.authenticate(SecureAccounts.Kind.PATIENT,
+                "00000000003", goodPassword) == legacyId,
+                "Leading-zero 11-digit ID did not work");
+        java.util.Arrays.fill(goodPassword, '\0');
+
         require(doctors.tryUpdateAddress(doctorId, "Updated doctor address"), "Doctor address not updated");
         require(patients.tryUpdateAddress(patientId, "Updated patient address"), "Patient address not updated");
         require(patients.patientNameLike("Anna") != null &&
