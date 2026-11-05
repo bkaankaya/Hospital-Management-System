@@ -35,10 +35,12 @@ public final class GatewayServer {
     private static final class Session {
         final GatewayPolicy.Role role;
         final int id;
+        final String credentialDigest;
         final long created;
         volatile long lastUsed;
-        Session(GatewayPolicy.Role role, int id) {
+        Session(GatewayPolicy.Role role, int id, String credentialDigest) {
             this.role = role; this.id = id;
+            this.credentialDigest = credentialDigest;
             this.created = System.currentTimeMillis();
             this.lastUsed = created;
         }
@@ -233,6 +235,7 @@ public final class GatewayServer {
         else if ("LOGIN_ADMIN".equals(operation)) role = GatewayPolicy.Role.ADMIN;
         else return null;
         int internalId;
+        String credentialDigest;
         char[] password = args[1].toCharArray();
         try {
             if (role == GatewayPolicy.Role.ADMIN) {
@@ -253,18 +256,34 @@ public final class GatewayServer {
                 }
                 adminFailures.set(0);
                 internalId = 0;
+                credentialDigest = "admin";
             } else {
                 internalId = SecureAccounts.authenticate(role == GatewayPolicy.Role.PATIENT
                         ? SecureAccounts.Kind.PATIENT : SecureAccounts.Kind.DOCTOR,
                         args[0], password);
                 if (internalId <= 0) return null;
+                String storedHash = credentialHash(role, internalId);
+                if (storedHash == null) return null;
+                credentialDigest = digest(storedHash);
             }
         } finally { Arrays.fill(password, '\0'); }
         if (sessions.size() >= 1000) sessions.entrySet().removeIf(e -> e.getValue().expired());
         if (sessions.size() >= 1000) return null;
         String bearer = token();
-        sessions.put(digest(bearer), new Session(role, internalId));
+        sessions.put(digest(bearer), new Session(role, internalId, credentialDigest));
         return new String[]{String.valueOf(internalId), bearer};
+    }
+
+    private static String credentialHash(GatewayPolicy.Role role, int identity) {
+        String table = role == GatewayPolicy.Role.PATIENT ? "Patient" : "Doctor";
+        try (Connection connection = DatabaseManager.getConnection();
+             PreparedStatement stmt = connection.prepareStatement(
+                     "SELECT password_hash FROM " + table + " WHERE SSN=? AND is_active=1")) {
+            stmt.setInt(1, identity);
+            try (ResultSet row = stmt.executeQuery()) {
+                return row.next() ? row.getString(1) : null;
+            }
+        } catch (SQLException ex) { return null; }
     }
 
     private static boolean activeAccount(Session session) {
@@ -272,10 +291,10 @@ public final class GatewayServer {
         String table = session.role == GatewayPolicy.Role.PATIENT ? "Patient" : "Doctor";
         try (Connection con = DatabaseManager.getConnection();
              PreparedStatement check = con.prepareStatement(
-                     "SELECT is_active FROM " + table + " WHERE SSN=? AND password_hash IS NOT NULL")) {
+                     "SELECT is_active, password_hash FROM " + table + " WHERE SSN=? AND password_hash IS NOT NULL")) {
             check.setInt(1, session.id);
             try (ResultSet rs = check.executeQuery()) {
-                return rs.next() && rs.getBoolean(1);
+                return rs.next() && rs.getBoolean(1) && session.credentialDigest.equals(digest(rs.getString(2)));
             }
         } catch (SQLException ex) { return false; }
     }
