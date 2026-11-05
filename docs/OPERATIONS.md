@@ -25,6 +25,8 @@ java -cp target/hospital-management-system-2.0.0.jar db.KeyFileGenerator /secure
 java -cp target/hospital-management-system-2.0.0.jar db.KeyFileGenerator /secure/backup/backup.key
 ```
 
+The key-file generator requires an owner-only POSIX filesystem and deliberately refuses to create keys on filesystems where private creation permissions cannot be guaranteed. For a Windows **server**, provision equivalent key files using an approved Windows key-management procedure and verify restrictive NTFS ACLs before starting the gateway; clients do not need these keys.
+
 These keys must be different, unique, recoverably backed up and inaccessible to desktop clients. Generate a PKCS12 TLS server keystore with the matching hostname/SAN via an approved certificate authority and store its password securely. Do not use self-signed CI certificates for real users.
 
 ## 4. Run Java gateway
