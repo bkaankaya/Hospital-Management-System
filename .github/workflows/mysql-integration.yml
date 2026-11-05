@@ -94,6 +94,19 @@ jobs:
             -Djavax.net.ssl.trustStoreType=PKCS12 \
             -Djavax.net.ssl.trustStorePassword=ci-trust-only-password \
             -cp target/hospital-management-system-2.0.0.jar:build/integration-tests db.GatewayIntegrationTest
+          # Real Swing client with DB credentials and encryption keys removed
+          # from its environment; only HTTPS URL and trusted CA remain.
+          javac --release 11 -encoding UTF-8 -cp target/hospital-management-system-2.0.0.jar \
+            -d build/integration-tests test/db/GuiWorkflowTest.java
+          env -u HOSPITAL_DB_URL -u HOSPITAL_DB_USER -u HOSPITAL_DB_PASSWORD \
+            -u HOSPITAL_DATA_KEY_BASE64 -u HOSPITAL_DATA_KEYRING_DIR \
+            -u HOSPITAL_ADMIN_PASSWORD \
+            xvfb-run -a java -Dhospital.ci.legacyFixtures=false \
+            -Djava.awt.headless=false \
+            -Djavax.net.ssl.trustStore="$PWD/build/gateway-ci/trust.p12" \
+            -Djavax.net.ssl.trustStoreType=PKCS12 \
+            -Djavax.net.ssl.trustStorePassword=ci-trust-only-password \
+            -cp target/hospital-management-system-2.0.0.jar:build/integration-tests db.GuiWorkflowTest
       - name: Verify backup restore, guarded backfill and versioned key rotation
         run: |
           set -euo pipefail
@@ -111,6 +124,9 @@ jobs:
           javac --release 11 -encoding UTF-8 -cp target/hospital-management-system-2.0.0.jar \
             -d build/integration-tests test/db/BackupVaultTest.java
           java -cp target/hospital-management-system-2.0.0.jar:build/integration-tests db.BackupVaultTest
+          javac --release 11 -encoding UTF-8 -cp target/hospital-management-system-2.0.0.jar \
+            -d build/integration-tests test/db/KeyFileGeneratorTest.java
+          java -cp target/hospital-management-system-2.0.0.jar:build/integration-tests db.KeyFileGeneratorTest
           java -cp target/hospital-management-system-2.0.0.jar \
             db.BackupVault encrypt build/migration/before.sql build/migration/before.hbak
           rm build/migration/before.sql
