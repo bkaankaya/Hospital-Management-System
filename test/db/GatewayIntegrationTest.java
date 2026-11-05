@@ -74,6 +74,39 @@ public final class GatewayIntegrationTest {
         List<String[]> ownVisits = client.call("PATIENT_SCHEDULE");
         check(ownVisits.size() == 1, "Second patient's scheduled visit not visible");
         String bookedId = ownVisits.get(0)[0];
+        // Simulate a trusted server-side password change. The already issued
+        // bearer token must immediately become invalid on the next request.
+        try (Connection database = DriverManager.getConnection(
+                System.getenv("HOSPITAL_DB_URL"),
+                System.getenv("HOSPITAL_TEST_DB_USER"),
+                System.getenv("HOSPITAL_TEST_DB_PASSWORD"))) {
+            String originalHash;
+            String salt;
+            try (java.sql.PreparedStatement select = database.prepareStatement(
+                    "SELECT password_hash, salt FROM Patient WHERE SSN=?")) {
+                select.setInt(1, otherPatient);
+                try (java.sql.ResultSet row = select.executeQuery()) {
+                    check(row.next(), "Synthetic user missing");
+                    originalHash = row.getString(1);
+                    salt = row.getString(2);
+                }
+            }
+            String replacement = SecurityManager.hashPassword(
+                    "ChangedPasswordForTest123".toCharArray(), salt);
+            try (java.sql.PreparedStatement update = database.prepareStatement(
+                    "UPDATE Patient SET password_hash=? WHERE SSN=?")) {
+                update.setString(1, replacement);
+                update.setInt(2, otherPatient);
+                check(update.executeUpdate() == 1, "Credential change fixture failed");
+            }
+            expectDenied(client, "PATIENT_SCHEDULE");
+            try (java.sql.PreparedStatement reset = database.prepareStatement(
+                    "UPDATE Patient SET password_hash=? WHERE SSN=?")) {
+                reset.setString(1, originalHash);
+                reset.setInt(2, otherPatient);
+                check(reset.executeUpdate() == 1, "Fixture credential restore failed");
+            }
+        }
         client.logout();
 
         client.login(GatewayPolicy.Role.PATIENT, "90000000001",
