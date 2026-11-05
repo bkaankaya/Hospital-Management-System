@@ -118,6 +118,10 @@ public final class GatewayClient {
         return send(active, operation, args);
     }
 
+    public static boolean successOrFalse(List<String[]> result) {
+        return result != null && success(result);
+    }
+
     public static boolean success(List<String[]> result) {
         return result.size() == 1 && result.get(0).length > 0
                 && "OK".equals(result.get(0)[0]);

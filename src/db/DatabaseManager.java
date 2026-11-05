@@ -22,6 +22,10 @@ public final class DatabaseManager {
     private DatabaseManager() { }
 
     public static Connection getConnection() throws SQLException {
+        if (!Boolean.getBoolean("hospital.gateway.server")
+                && !Boolean.getBoolean("hospital.ci.legacyFixtures")) {
+            throw new SQLException("Direct JDBC is disabled in desktop runtime; use the trusted gateway");
+        }
         Properties properties = loadDatabaseProperties();
         String url = override("HOSPITAL_DB_URL", properties.getProperty("url"));
         String username = override("HOSPITAL_DB_USER",

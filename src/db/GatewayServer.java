@@ -57,6 +57,7 @@ public final class GatewayServer {
     }
 
     public static void main(String[] args) throws Exception {
+        System.setProperty("hospital.gateway.server", "true");
         if (args.length != 0) throw new IllegalArgumentException("Configure using protected environment variables");
         String host = System.getenv().getOrDefault("HOSPITAL_SERVER_BIND", "127.0.0.1");
         if (!"127.0.0.1".equals(host) && !"::1".equals(host)
