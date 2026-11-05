@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS Nurse (
     Surname VARCHAR(100) NOT NULL,
     Gender VARCHAR(20) NOT NULL,
     Address VARCHAR(500),
+    Address_Cipher TEXT NULL,
     Date_Of_Birth DATE NOT NULL
 ) ENGINE=InnoDB;
 
