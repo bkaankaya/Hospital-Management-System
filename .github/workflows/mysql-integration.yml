@@ -102,6 +102,20 @@ jobs:
           docker exec "$container" mysqldump -uroot -pci-local-only-password \
             --single-transaction --triggers --routines --events hospital > build/migration/before.sql
           test -s build/migration/before.sql
+          mkdir -p build/gateway-ci/backup-keys
+          chmod 700 build/gateway-ci/backup-keys
+          printf '%s' 'MDAxMTIyMzM0NDU1NjY3Nzg4OTlBQUJCQ0NEREVFRkY=' \
+            > build/gateway-ci/backup-keys/backup.key
+          chmod 600 build/gateway-ci/backup-keys/backup.key
+          export HOSPITAL_BACKUP_KEY_FILE="$PWD/build/gateway-ci/backup-keys/backup.key"
+          javac --release 11 -encoding UTF-8 -cp target/hospital-management-system-2.0.0.jar \
+            -d build/integration-tests test/db/BackupVaultTest.java
+          java -cp target/hospital-management-system-2.0.0.jar:build/integration-tests db.BackupVaultTest
+          java -cp target/hospital-management-system-2.0.0.jar \
+            db.BackupVault encrypt build/migration/before.sql build/migration/before.hbak
+          rm build/migration/before.sql
+          java -cp target/hospital-management-system-2.0.0.jar \
+            db.BackupVault decrypt build/migration/before.hbak build/migration/before.sql
           docker exec "$container" mysql -uroot -pci-local-only-password -e \
             'CREATE DATABASE hospital_restore CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci'
           docker exec -i "$container" mysql -uroot -pci-local-only-password \
@@ -125,6 +139,11 @@ jobs:
           grep -q 'Updated address rows: 0' build/migration/idempotency.log
           docker exec "$container" mysqldump -uroot -pci-local-only-password \
             --single-transaction --triggers --routines --events hospital > build/migration/pre-rotation.sql
+          java -cp target/hospital-management-system-2.0.0.jar \
+            db.BackupVault encrypt build/migration/pre-rotation.sql build/migration/pre-rotation.hbak
+          rm build/migration/pre-rotation.sql
+          java -cp target/hospital-management-system-2.0.0.jar \
+            db.BackupVault decrypt build/migration/pre-rotation.hbak build/migration/pre-rotation.sql
           export HOSPITAL_MIGRATION_BACKUP_FILE="$PWD/build/migration/pre-rotation.sql"
           export HOSPITAL_MIGRATION_BACKUP_SHA256="$(sha256sum "$HOSPITAL_MIGRATION_BACKUP_FILE" | cut -d' ' -f1)"
           printf '%s' 'ZmVkY2JhOTg3NjU0MzIxMGZlZGNiYTk4NzY1NDMyMTA=' \
@@ -134,7 +153,7 @@ jobs:
           java -cp target/hospital-management-system-2.0.0.jar db.LegacyDataMigrator --apply
           java -cp target/hospital-management-system-2.0.0.jar:build/integration-tests \
             db.MigrationVerificationTest ci2
-          rm -f build/migration/*.sql
+          rm -f build/migration/*.sql build/migration/*.hbak
       - name: Compile and render the real Swing application under Xvfb
         run: |
           command -v xvfb-run
