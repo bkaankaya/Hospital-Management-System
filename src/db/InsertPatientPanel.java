@@ -107,7 +107,7 @@ public class InsertPatientPanel extends JPanel {
         status.setText("Saving patient...");
         new SwingWorker<Boolean, Void>() {
             @Override protected Boolean doInBackground() {
-                try { return SecureAccounts.registerPatient(patient, national, password); }
+                try { return GatewayBridge.registerPatient(patient, national, password); }
                 finally { java.util.Arrays.fill(password, '\0'); }
             }
             @Override protected void done() {

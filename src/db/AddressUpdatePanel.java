@@ -35,8 +35,7 @@ public class AddressUpdatePanel extends JPanel {
             status.setText("Saving address...");
             new SwingWorker<Boolean, Void>() {
                 @Override protected Boolean doInBackground() {
-                    return doctor ? new DoctorDAO().tryUpdateAddress(id, value)
-                            : new PatientDAO().tryUpdateAddress(id, value);
+                    return GatewayBridge.updateAddress(doctor, id, value);
                 }
                 @Override protected void done() {
                     submit.setEnabled(true);

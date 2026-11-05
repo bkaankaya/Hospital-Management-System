@@ -66,7 +66,17 @@ public class LoginPanel extends JPanel {
             status.setText("Checking credentials...");
             new SwingWorker<Integer, Void>() {
                 @Override protected Integer doInBackground() {
-                    try { return SecureAccounts.authenticate(role, id, entered); }
+                    try {
+                        if (GatewayClient.useGateway()) {
+                            return GatewayClient.get().login(
+                                    role == SecureAccounts.Kind.PATIENT
+                                            ? GatewayPolicy.Role.PATIENT : GatewayPolicy.Role.DOCTOR,
+                                    id, entered);
+                        }
+                        return SecureAccounts.authenticate(role, id, entered);
+                    } catch (java.io.IOException ex) {
+                        return 0;
+                    }
                     finally { Arrays.fill(entered, '\0'); }
                 }
                 @Override protected void done() {
@@ -120,6 +130,34 @@ public class LoginPanel extends JPanel {
             char[] entered = password.getPassword();
             password.setText("");
             try {
+                if (GatewayClient.useGateway()) {
+                    char[] credentials = java.util.Arrays.copyOf(entered, entered.length);
+                    submit.setEnabled(false);
+                    status.setText("Checking administrator credentials...");
+                    new SwingWorker<Integer, Void>() {
+                        @Override protected Integer doInBackground() {
+                            try { return GatewayClient.get().login(
+                                    GatewayPolicy.Role.ADMIN, "admin", credentials); }
+                            catch (java.io.IOException ex) { return -1; }
+                            finally { java.util.Arrays.fill(credentials, '\0'); }
+                        }
+                        @Override protected void done() {
+                            submit.setEnabled(true);
+                            try {
+                                if (get() < 0) {
+                                    status.setText("Administrator sign-in denied.");
+                                    return;
+                                }
+                                mainFrame.setAdminAuthenticated();
+                                mainFrame.showPanel(MainFrame.INSERT_MENU_PANEL);
+                                status.setText(" ");
+                            } catch (Exception ex) {
+                                status.setText("Administrator sign-in unavailable.");
+                            }
+                        }
+                    }.execute();
+                    return;
+                }
                 if (System.currentTimeMillis() < adminBlockedUntil) {
                     status.setText("Too many attempts. Try again later.");
                     return;

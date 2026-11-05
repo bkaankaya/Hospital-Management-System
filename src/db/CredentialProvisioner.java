@@ -13,6 +13,8 @@ public final class CredentialProvisioner {
     private CredentialProvisioner() { }
 
     public static void main(String[] args) {
+        // This administrative CLI is run ONLY on the trusted database host.
+        System.setProperty("hospital.gateway.server", "true");
         Console console = System.console();
         if (console == null) {
             System.err.println("Run from a real terminal; credentials are never accepted as command arguments.");

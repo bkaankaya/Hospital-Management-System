@@ -72,7 +72,7 @@ public class CancelAppointmentPanel extends JPanel {
         status.setText("Loading your appointments...");
         new SwingWorker<List<String[]>, Void>() {
             @Override protected List<String[]> doInBackground() {
-                return new AppointmentDAO().getDoctorUpcomingAppointments(doctorId);
+                return GatewayBridge.doctorSchedule(doctorId);
             }
             @Override protected void done() {
                 if (token != generation || !doctorId.equals(mainFrame.getCurrentDoctorSsn())) return;
@@ -120,7 +120,7 @@ public class CancelAppointmentPanel extends JPanel {
         status.setText("Cancelling selected appointment...");
         new SwingWorker<Boolean, Void>() {
             @Override protected Boolean doInBackground() {
-                return new AppointmentDAO().cancelDoctorAppointment(appointmentId, doctorId);
+                return GatewayBridge.cancel(appointmentId, doctorId);
             }
             @Override protected void done() {
                 if (!doctorId.equals(mainFrame.getCurrentDoctorSsn())) return;

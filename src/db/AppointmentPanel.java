@@ -83,7 +83,7 @@ public class AppointmentPanel extends JPanel {
         final int generation = departmentGeneration;
         new SwingWorker<List<String>, Void>() {
             @Override protected List<String> doInBackground() {
-                return new DepartmentDAO().getDepartmentList();
+                return GatewayBridge.departments();
             }
             @Override protected void done() {
                 if (generation != departmentGeneration) return;
@@ -123,7 +123,7 @@ public class AppointmentPanel extends JPanel {
         status.setText("Loading doctors...");
         new SwingWorker<List<String>, Void>() {
             @Override protected List<String> doInBackground() {
-                return doctors.getDoctorList(selected);
+                return GatewayBridge.doctors(selected);
             }
             @Override protected void done() {
                 if (generation != doctorGeneration) return;
@@ -160,8 +160,8 @@ public class AppointmentPanel extends JPanel {
         status.setText("Checking available times...");
         new SwingWorker<Slots, Void>() {
             @Override protected Slots doInBackground() {
-                int id = doctors.getDoctorSsn(doctorName);
-                return id > 0 ? new Slots(id, appointments.getTimeList(id, selectedDate))
+                int id = GatewayBridge.doctorId(doctorName);
+                return id > 0 ? new Slots(id, GatewayBridge.slots(id, selectedDate))
                         : new Slots(0, null);
             }
             @Override protected void done() {
@@ -201,7 +201,7 @@ public class AppointmentPanel extends JPanel {
         status.setText("Saving the appointment...");
         new SwingWorker<Boolean, Void>() {
             @Override protected Boolean doInBackground() {
-                return appointments.bookAppointment(new Appointment(
+                return GatewayBridge.book(new Appointment(
                         selectedDate, selectedTime, patientId, doctorId));
             }
             @Override protected void done() {

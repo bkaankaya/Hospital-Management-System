@@ -60,7 +60,7 @@ public final class PatientAppointmentsPanel extends JPanel {
         status.setText("Loading your appointments...");
         new SwingWorker<List<String[]>, Void>() {
             @Override protected List<String[]> doInBackground() {
-                return new AppointmentDAO().getPatientUpcomingAppointments(id);
+                return GatewayBridge.patientSchedule(id);
             }
             @Override protected void done() {
                 if (request != requestId || !id.equals(mainFrame.getCurrentPatientSsn())) return;

@@ -68,7 +68,7 @@ public class InsertDoctorPanel extends JPanel {
         status.setText("Loading departments...");
         new SwingWorker<List<String>, Void>() {
             @Override protected List<String> doInBackground() {
-                return new DepartmentDAO().getDepartmentList();
+                return GatewayBridge.departments();
             }
             @Override protected void done() {
                 if (generation != refreshGeneration) return;
@@ -143,7 +143,7 @@ public class InsertDoctorPanel extends JPanel {
         status.setText("Saving doctor...");
         new SwingWorker<Boolean, Void>() {
             @Override protected Boolean doInBackground() {
-                try { return SecureAccounts.registerDoctor(doctor, national, password); }
+                try { return GatewayBridge.registerDoctor(doctor, national, password); }
                 finally { java.util.Arrays.fill(password, '\0'); }
             }
             @Override protected void done() {

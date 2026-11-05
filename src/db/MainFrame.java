@@ -168,6 +168,7 @@ public class MainFrame extends JFrame {
             return;
         }
         if (LOGIN_PANEL.equals(panelName)) {
+            GatewayClient.get().logout();
             currentPatientSsn = null;
             currentDoctorSsn = null;
             currentRole = AccessPolicy.Role.NONE;
@@ -234,6 +235,7 @@ public class MainFrame extends JFrame {
         }
         currentPanel = previous;
         if (LOGIN_PANEL.equals(previous)) {
+            GatewayClient.get().logout();
             currentPatientSsn = null;
             currentDoctorSsn = null;
             currentRole = AccessPolicy.Role.NONE;

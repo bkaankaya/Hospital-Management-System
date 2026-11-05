@@ -54,7 +54,7 @@ public class MedicineStatsPanel extends JPanel {
         status.setText("Loading departments...");
         new SwingWorker<List<String>, Void>() {
             @Override protected List<String> doInBackground() {
-                return new DepartmentDAO().getDepartmentList();
+                return GatewayBridge.departments();
             }
             @Override protected void done() {
                 if (generation != departmentGeneration) return;
@@ -88,7 +88,7 @@ public class MedicineStatsPanel extends JPanel {
         status.setText("Loading department statistics...");
         new SwingWorker<List<String>, Void>() {
             @Override protected List<String> doInBackground() {
-                return new MedicineDAO().getStatistics(selected);
+                return GatewayBridge.medicineStatistics(selected);
             }
             @Override protected void done() {
                 if (generation != statisticsGeneration) return;

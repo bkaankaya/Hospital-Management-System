@@ -61,7 +61,7 @@ public class PatientNameLikePanel extends JPanel {
         status.setText("Searching records...");
         new SwingWorker<List<ArrayList<String>>, Void>() {
             @Override protected List<ArrayList<String>> doInBackground() {
-                return new PatientDAO().patientNameLike(term);
+                return GatewayBridge.patientSearch(term);
             }
             @Override protected void done() {
                 search.setEnabled(true);
