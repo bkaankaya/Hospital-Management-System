@@ -1,41 +1,47 @@
-# Security policy and threat model
+# Security policy
 
-## Scope
+## Intended scope
 
-This public repository is an educational desktop prototype with enhanced defensive controls. **It is not certified or approved to store real clinical or identifying data.** Use synthetic patient records and development-only credentials.
+This project demonstrates mature defensive design using retained historical Java technologies. It must not be used with real patient, identity or medical information until an independently reviewed production deployment exists.
 
-## Security controls currently implemented
+## Implemented and tested
 
-- PBKDF2-HMAC-SHA256 (600,000 rounds, random salts); stored password verification only
-- Password-protected patient/doctor sign-in, fail-closed unprovisioned accounts
-- Persistent failed-login counters and a 15-minute lockout; basic in-process admin throttle
-- Prepared JDBC statements for active booking, identity verification and schedule queries
-- MySQL unique slot constraints, scoped cancellations and rejection of linked clinical-record cancellation
-- AES-GCM encryption of **new** prescription/diagnosis text using a separately supplied persistent key
-- JDBC loopback-only defaults; optional remote connection requires explicit enablement and verified server TLS identity
-- Database-level audit metadata for critical clinical and scheduling writes
-- Short-retention test screenshots and isolated MySQL CI fixtures
+- Java 11 HTTPS gateway; remote requests require valid TLS certificate trust
+- Server-side allowlisted permissions and session-owned record boundaries
+- Cryptographically random bearer tokens (server stores digests), idle expiry and logout invalidation
+- Account status revalidation per request
+- PBKDF2-HMAC-SHA256 password hashing, salt, login attempt lockout
+- Server-only JDBC access by default; test-only legacy DAO mode separately gated
+- Non-root MySQL identity in CI; absence of audit-ledger write permissions verified
+- Prepared statements, MySQL uniqueness constraints, doctor-scoped cancellation
+- AES-256-GCM for new medical prose and address fields
+- Versioned keyring, re-encryption migration and checksum-guarded backup prerequisites
+- Separate backup encryption key, authenticated restore, tamper rejection
+- Tests for TLS, roles, same-role row separation, GUI, concurrent bookings, restore and key rotation
 
-## Residual risk — deployment blockers
+## Deployment-critical remaining risks
 
-| Severity | Exposure | Acceptance requirement |
-| --- | --- | --- |
-| BLOCKER | Shared direct MySQL credentials in distributed desktop clients | Trusted server authorization boundary, individual user session checks and database least privilege |
-| BLOCKER | Historical records, addresses, names and identifiers are not all encrypted | Key-management and backfilled data protection with verified restore |
-| BLOCKER | Full clinical security review and applicable privacy requirements incomplete | Threat model review, independent penetration test, privacy/data-retention sign-off |
-| HIGH | Administrator secret supplied via environment variable | Dedicated administrator identity and secure deployment-bound secret storage |
-| HIGH | Audit metadata identifies database records, not individual authenticated actors | Server-side tamper-evident actor attribution and retention controls |
-| HIGH | Database backup, key rotation and disaster recovery not independently exercised | Documented, tested RPO/RTO, restore drills, monitoring and incident procedures |
-| MEDIUM | Account lockout can be used to temporarily deny a victim access | Abuse monitoring, support-guided unlock and policy review |
+1. **Real-world deployment has not been performed or independently certified.** Secure host separation, firewall ingress, TLS certificate issuance and renewal, strict MySQL grants, OS privileges, monitoring and incident response are operational responsibilities.
+2. **Not all fields are application-encrypted.** Names, birth dates and national ID fields remain relational columns; historical SQL exports might also contain plaintext. Full privacy controls require a reviewed storage and data minimization plan.
+3. **User identity proofing and account recovery** need a formal secure workflow; local administrator provisioning alone is not enough for clinical use.
+4. **Monitoring and audit attribution:** the database audit trigger captures record events, not a fully tamper-evident timeline of specific human operators. Centralized audit storage and alerting are required.
+5. **Independent verification:** a professional penetration test, backup recovery drills on the deployment environment, disaster recovery objectives and local data protection (e.g., KVKK) review have not occurred.
+6. **Environment and keys:** the JDK keyring files require restrictive OS permissions (POSIX owner-only enforced where available; Windows NTFS ACLs must be configured by the operator). Keep decryption keys out of clients, Git and general backups.
 
-**No production-readiness claim is made until all BLOCKER items are resolved.** For an actual hospital application, the architecture and controls must undergo independent design review.
+## Supported practice
 
-## Secret hygiene
+The default desktop process refuses JDBC access. A separate `GatewayServer` holds DB credentials. Only supported user operations are exposed via `GatewayPolicy`. Do not open port 3306 to client devices. Never run as the MySQL root account.
 
-Never commit `.env` files, real `login.properties`, access tokens, database backups, patient exports, medical-data keys or credential screenshots. Configuration is supplied locally through `HOSPITAL_DB_*`, `HOSPITAL_ADMIN_PASSWORD` and `HOSPITAL_DATA_KEY_BASE64`. A synthetic key in CI is **not** a deployment key.
+**Do not run the test-only system property `hospital.ci.legacyFixtures` in real deployment.** This switch exists only to preserve independent legacy integration fixtures. The service must run with a dedicated, least-privileged DB identity and genuine TLS certificate verification.
 
-If a secret has appeared in Git history, revoke/rotate it. Deleting it from the latest commit is insufficient because previous commits remain accessible.
+## Key handling
 
-## Reporting vulnerabilities
+- Use `db.KeyFileGenerator` to create random 256-bit medical and backup key files.
+- Give each medical key a short unique ID, record the active ID only on the trusted service host, and secure keyring backups independently.
+- Retain old keys until all data/backups are re-encrypted and old snapshots have expired.
+- Never commit keys, dumps, export files, private PKCS12 keystores or credentials. Rotate any exposed historical secrets.
+- A backup is not trustworthy until a separate restoration verifies consistency, referential integrity, audit triggers and decryption.
 
-Avoid posting real patient records, secrets, or proof-of-concept exploitation details in a public GitHub issue. Use the repository's private vulnerability reporting mechanism if available; otherwise request a private reporting channel without sharing sensitive details publicly.
+## Security issue reporting
+
+Do not open public issues containing clinical records, credentials, private keys or exploit demonstrations. Prefer private security advisories or a private maintainer communication channel.

@@ -1,44 +1,47 @@
-# Architecture — preserved Java desktop stack
+# Legacy Java architecture and trust boundaries
 
-## Technical identity
+## Version-pinned design
 
-Hospital Management System is a **Java Swing desktop application**, not a React website or microservice. The Java 11 source compatibility, Maven 3.11.0 compiler plugin, Maven Shade 3.4.1, MySQL Connector/J 8.2.0 and MySQL 8.x remain unchanged. JDK 17 is used in CI.
+The application remains Java Swing + JDBC + MySQL. The Java 11 JDK's built-in `HttpsServer` and `HttpClient` provide a separate trusted process without adding dependencies or replacing the desktop UI.
 
 ```text
-Patient / Doctor / Admin
-          |
-   Swing panels (EDT)
-          |
-   MainFrame + AccessPolicy  [UI navigation only]
-          |
-  SwingWorker (background DB calls)
-          |
- Java DAO / SecureAccounts
-          |
-    JDBC / MySQL 8.x
-          |
-InnoDB constraints + DB triggers
+UNTRUSTED DESKTOP                    TRUSTED SERVICE HOST                 DATABASE
+Swing UI [no SQL secrets] ---TLS---> GatewayServer [sessions + roles] ---> MySQL 8
+GatewayClient/GatewayBridge           explicit API allowlist               row data
+short-lived bearer token              owner-only encryption key files      audit triggers
 ```
 
-### Boundaries
+**Credential separation is mandatory at deployment.** The Swing client only receives `HOSPITAL_GATEWAY_URL` and the public trust root for HTTPS. It must not receive MySQL login details, administrator secrets, medical keyring access or backup encryption keys. Database network ACLs must only accept connections from the trusted service host.
 
-1. **UI:** Swing widgets, accessible input labels, sortable tables, role navigation, confirmations and nonblocking workers.
-2. **Application code:** credential checks, prepared statements, appointment validation and GCM encryption for newly created clinical text.
-3. **MySQL:** foreign keys, exclusive doctor/patient time slots, transaction semantics, account lockout fields and metadata audit triggers.
-4. **Operational control:** database access restricted to a loopback host by default. Remote access is explicit and requires `sslMode=VERIFY_IDENTITY`.
+### Core authorization design
 
-**Critical security limitation:** The executable contains a shared database connection, so a user who extracts those credentials can bypass Java UI checks. Neither Swing role controls nor audit triggers solve row-level authorization. A trusted Java service tier (still possible with the legacy language/toolchain, subject to a separate architecture decision), distinct database identities and additional controls are prerequisites for real multi-user clinical use. No such service is claimed to exist today.
+- No unrecognized operation is permitted (`GatewayPolicy` is deny-by-default).
+- Every API request requires a server-issued, cryptographically random bearer token, except for login.
+- The server stores only token digests, expires idle sessions after 15 minutes and imposes a maximum 8-hour lifetime.
+- Every request rechecks that the patient or doctor account remains active.
+- Row IDs for scheduling, cancellations and address updates are derived from the authenticated server session, **not client-provided patient/doctor IDs**.
+- Gateway registration and administrator search actions are restricted to administrator sessions.
+- MySQL grants give the gateway access to required tables but not direct modification of `Audit_Event`. Audit history is written by administrator-owned triggers.
+- The UI role guard remains useful for navigation but is never the trusted access decision.
 
-### Integrity constraints
+This is a **restricted custom binary HTTPS protocol**, not public JSON REST. The server limits payload sizes, validates request shapes, returns generic errors and avoids logging patient values. TLS must verify the actual hostname; never install an accept-all trust manager.
 
-- Two appointments cannot occupy the same date/time for the same doctor.
-- A patient cannot be double-booked for the same date/time.
-- Doctor cancellations are scoped to that doctor, reject past/current completed appointments and reject appointments with linked clinical records.
-- The legacy unvalidated booking and unscoped cancellation methods throw errors.
-- New appointment and clinical-record writes are audited by MySQL triggers; audits record **event type and internal record number**, never medical prose.
-- Authentication uses PBKDF2-HMAC-SHA256; new clinical prose uses AES-256-GCM.
-- National identifiers are separate string fields; existing integer foreign keys remain unchanged.
+### Java-only CI mode
 
-### Change policy
+The isolated fixture mode `-Dhospital.ci.legacyFixtures=true` allows old direct-DAO testing without needing the gateway in every JVM. It is strictly for GitHub's disposable test environment. Do not use it to launch a distributed desktop, and do not distribute database credentials with the client. CI also starts a real HTTPS gateway and tests authorization with the fixture mode disabled.
 
-**No upgrades without owner approval.** Never change `pom.xml` versions or introduce another framework as a cosmetic modernization. CI includes an automated legacy stack guard. Security/quality changes are performed within existing Java, JDBC and MySQL interfaces, with tests and explicit migration plans.
+### Data protection
+
+- New prescriptions, diagnoses and addresses use AES-GCM.
+- A versioned `enc:v2:<key-id>:<ciphertext>` envelope identifies the encryption key; owners retain older keys until all data and backups have been migrated.
+- Old `enc:v1` clinical text requires the legacy encryption key during migration and cannot be decrypted without it.
+- The separate `BackupVault` protects SQL exports with an unrelated AES-GCM key.
+- Migration updates are ordered, small-batch, optimistic and transactional; records with ambiguous legacy encryption state fail instead of being overwritten.
+
+### Residual data concerns
+
+Names, dates of birth and national identifiers remain queryable in MySQL, so they are not fully encrypted at the application field level. The gateway provides access isolation, not full field encryption for these fields. A real clinical deployment requires a separately reviewed data minimization, privacy and storage encryption strategy plus appropriate operating controls.
+
+### Security scope
+
+The new Java service closes the client-side SQL-credential exposure **when deployed according to this design**. Running desktop, gateway and root-privileged MySQL in the same exposed user session is not a secure deployment. See `SECURITY.md` for the remaining blockers.

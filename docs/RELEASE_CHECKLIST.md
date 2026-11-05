@@ -1,41 +1,47 @@
-# Legacy Java product quality and release gates
+# Historical-stack quality and release acceptance
 
-This checklist is for a **polished local educational desktop release**. It is *not* approval for clinical use.
+The goal is a professionally engineered **Java Swing/JDBC/MySQL** project without a dependency upgrade, not an unverified healthcare production claim.
 
-## Existing stack (must remain pinned)
+## Pinned stack
 
-- [x] Java Swing UI, no web frontend
-- [x] Java 11 source compatibility, JDK 17 test compiler
-- [x] MySQL Connector/J 8.2.0
-- [x] Maven Compiler Plugin 3.11.0, Shade Plugin 3.4.1
-- [x] Maven project version 2.0.0
-- [x] No extra application dependency introduced
-- [x] CI guard against unapproved technology changes
+- [x] Java 11 source compatibility with JDK 17 CI
+- [x] Java Swing GUI preserved
+- [x] MySQL Connector/J 8.2.0, compiler 3.11.0, Shade 3.4.1, project 2.0.0 preserved
+- [x] No additional UI/runtime framework or dependency
+- [x] CI guard rejects unapproved version changes
 
-## Safety and functional implementation
+## Security architecture and controlled data access
 
-- [x] Credential-only patient/doctor authentication
-- [x] Server-database persistent account lockout fields
-- [x] GUI cross-role navigation guard (not a trusted backend boundary)
-- [x] Database-level conflict rejection for appointments
-- [x] Patient upcoming appointment view and doctor schedule view
-- [x] Appointment cancellation authorization by doctor ID at DAO level
-- [x] Prevent cancel of past or medical-record-linked appointment
-- [x] Authenticated encryption of new clinical notes
-- [x] Operational metadata audit triggers and migration script
-- [x] Loopback-only default JDBC; verified TLS for explicitly enabled remote endpoints
-- [ ] Dedicated per-user server-side authorization boundary
-- [ ] Independent security penetration test and clinical/privacy legal review
-- [ ] Full encryption/migration of historical and demographic data
-- [ ] Tested database restoration, key rotation, audit actor identity and alerting
-- [ ] Real clinical workflow acceptance and accessibility audit across operating systems
+- [x] Trusted Java HTTPS service (JDK only)
+- [x] Deny-by-default, role-limited operations verified on real HTTPS requests
+- [x] Patient and doctor record scoping derived from authenticated server sessions
+- [x] Client direct-JDBC access denied outside explicit synthetic CI mode
+- [x] Client logout revokes bearer token
+- [x] CI non-root DB account cannot write/erase audit ledger
+- [x] Persistent account lockout and password hash checks
+- [x] Local workstation idle lock
+- [x] MySQL uniqueness and atomic appointment constraints
 
-## CI gate
+## Data preservation and restore
 
-On each push to `main`, verify:
-- The legacy dependency version guard passes.
-- Java models/crypto/authorization smoke tests pass.
-- MySQL integration, audit, lockout, schedule and concurrent booking checks pass.
-- Swing GUI button and navigation tests pass with Xvfb.
+- [x] AES-GCM new clinical and address fields
+- [x] Versioned medical keyring and old-key reading while migrating
+- [x] SQL backup encryption using an independent AES-GCM key
+- [x] Tamper rejection without publishing a bad restore
+- [x] Real secondary MySQL schema restore checked for row counts, triggers and decryption
+- [x] Guarded, repeatable data backfill; rerun makes no changes
+- [x] Synthetic medical key rotation checked end to end
+- [ ] Historical names, birth dates and national identifiers still need privacy/storage review
+- [ ] Real database backup/restore and migration in the target environment not performed
 
-A checkmark describes the **implementation status**, not an independent certification. Record the exact commit and Actions URL before publishing a build. Stop if a required test is queued, skipped, or failed.
+## Clinical deployment blockers
+
+- [ ] Managed hardened service/DB hosts, firewall restrictions and least-privileged credentials verified in target environment
+- [ ] CA-issued TLS certificate, truststore deployment and certificate renewal automated
+- [ ] Actual user identity proofing, secure password recovery, incident workflow and actor-attributed audit
+- [ ] Complete sensitive-field data minimization/encryption and retention requirements
+- [ ] Real encrypted-backup retention, escrow, rotation and disaster recovery exercise
+- [ ] Security penetration testing, access control review, usability/accessibility and medical regulatory assessment
+- [ ] Sign-off by responsible product, security, operations and privacy owners
+
+CI passing proves covered functionality and security constraints in the **synthetic fixture**, not regulatory or clinical production readiness. Do not close blockers without supporting deployment evidence.

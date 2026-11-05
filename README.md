@@ -1,114 +1,100 @@
 # Hospital Management System
 
-**Classic Java engineering, not a framework showcase.** This repository intentionally retains its Java Swing + JDBC + MySQL desktop architecture and original dependency versions. Work is focused on maintainability, tested workflows, data integrity, defensive coding and a polished desktop experience.
+**Professional legacy Java engineering** · Java Swing · JDBC · MySQL · Maven
 
-**Engineering documentation:** [Architecture](docs/ARCHITECTURE.md) · [Security & threats](SECURITY.md) · [Operations & recovery](docs/OPERATIONS.md) · [Release checklist](docs/RELEASE_CHECKLIST.md)
+A classic, desktop-first hospital database management application. Its technology choices are intentional: Java Swing for the user interface, Java 11 source compatibility, MySQL 8.x for relational storage, and the existing Maven/JDBC dependency versions. The focus is on testable workflows, security boundaries, recovery and maintainable engineering — **not replacing the stack with newer frameworks**.
 
-**Recent improvements:** local-only database connections by default (remote TLS verification required), database-triggered event auditing, a patient appointment table, a doctor schedule table, and prevention of unsafe legacy booking/deletion APIs. These changes do not constitute clinical production certification.
+> **Status:** Advanced historical-stack engineering demo with a separately deployable trusted Java HTTPS service. Comprehensive synthetic-data CI exists. **Not certified for real clinical or personal data**: demographic fields and legacy backups still need a reviewed production privacy plan, dedicated deployment hardening, user identity proofing, independent penetration testing and operational sign-off.
 
+## Architecture
 
-A traditional **Java-only** desktop hospital-management learning project built with **Java Swing, JDBC, and MySQL**. Existing dependency and tool versions are preserved. The GUI supports patients, doctors, and a local administrator.
+```text
+[Java Swing desktop]  HTTPS + validated TLS certificate
+          |                    |
+          +------------------->|
+                               v
+                     [Trusted Java 11 gateway]
+                      sessions / RBAC / row scope
+                               |
+                         JDBC (server only)
+                               |
+                        [MySQL 8.x]
+              constraints / audit triggers / data
+```
 
-> **Security scope:** Authentication, account lockout, and new medical-record encryption have been added. This is still a **local educational application, not an approved system for real patient data**. Direct desktop-to-MySQL credentials, historical plaintext records, unencrypted demographic fields, and the absence of a server-side authorization boundary require additional architecture and security review before any clinical use.
+The distributed Swing client never needs a MySQL password or a medical encryption key. **Direct JDBC is blocked in normal desktop runtime**. Server operations use the identity stored in authenticated server sessions; patient and doctor record identifiers from the client cannot override that identity. The network gateway is written entirely with the Java 11 JDK HTTPS and HTTP libraries.
 
 ## Features
 
-- Responsive Java Swing login, role dashboards, registration forms, appointment booking, and address updates
-- Patient booking with a 14-day window and MySQL uniqueness constraints against double-booking
-- Doctor-scoped appointment cancellation
-- Administrator patient search using a sortable Swing table, and department medicine statistics
-- Nonblocking database operations via `SwingWorker`
-- Password-protected patient and doctor sign-in (no identity-only fallback)
-- PBKDF2-HMAC-SHA256 password hashes with **600,000 iterations**, unique random 16-byte salts, and constant-time verification
-- Persistent **5 failed attempts / 15-minute** patient/doctor lockout; basic in-process administrator login throttling
-- Optional **11-digit national identifier stored as text**, distinct from the existing numeric internal database key
-- AES-256-GCM encryption of **new prescription and diagnosis fields** using a key supplied outside Git
-- A console-only administrator authorization step for enrolling or resetting legacy accounts that do not have a current PBKDF2 password
+- Patient, doctor and administrator accounts with PBKDF2-HMAC-SHA256 passwords (600,000 iterations), salts, persistent failed-attempt counters and lockouts
+- A responsive Swing UI with nonblocking database requests, accessible input names and role-specific dashboards
+- Patient booking and upcoming appointment lists; doctor schedule and doctor-scoped cancellation
+- Transactional MySQL appointment uniqueness and database audit triggers
+- Administrator account registration, patient search and department statistics
+- **Server-only** database credentials; fail-closed role and row-scoped HTTPS request handling
+- AES-256-GCM encryption of new clinical prose and addresses
+- Versioned, owner-restricted on-host keyring, plus repeatable historical-data backfill and key rotation
+- Independent AES-GCM encrypted backups, verified restoration and tamper detection
+- CI coverage for Java, MySQL, Swing, TLS, access control, cross-user isolation, recovery and rotation
 
-## Retained technology
+## Intentionally unchanged technologies
 
-| Layer | Technology |
+| Component | Retained version/technology |
 | --- | --- |
-| Language and GUI | Java Swing, Java source compatibility `--release 11` |
-| Build JDK | JDK 17 or newer |
-| Database | MySQL 8.x and JDBC |
-| JDBC library | MySQL Connector/J 8.2.0 |
+| Primary language and interface | Java Swing, Java source release 11 |
+| Build JDK | 17 in GitHub CI |
+| Database | MySQL 8.x, InnoDB |
+| JDBC driver | MySQL Connector/J 8.2.0 |
 | Maven Compiler Plugin | 3.11.0 |
 | Maven Shade Plugin | 3.4.1 |
-| Application version | 2.0.0 |
+| Project version | 2.0.0 |
 
-No React, web frontend, new UI framework, or dependency version upgrade is required.
+No Spring Boot, JavaScript UI, React or new runtime dependency is used. Changes to versions or frameworks require the project owner's explicit approval.
 
-## Setup: new local database
+## Getting started with synthetic data
 
-1. Install JDK 17+, Apache Maven, and MySQL 8.x.
-2. Create a **new empty local database** using `db/schema.sql`. Do **not** run this setup script over existing populated data.
-3. Create a dedicated local MySQL application user with only the privileges necessary for the demo. **Do not use the MySQL root account for normal application operation.**
-4. Set the following environment variables in your terminal or operating-system secret manager:
-   - `HOSPITAL_DB_URL` — JDBC URL for your MySQL `hospital` database
-   - `HOSPITAL_DB_USER` — dedicated application database username
-   - `HOSPITAL_DB_PASSWORD` — its password
-   - `HOSPITAL_ADMIN_PASSWORD` — a distinct, strong 12+ character local administrator password
-   - `HOSPITAL_DATA_KEY_BASE64` — a securely generated, **persistent** Base64-encoded 32-byte AES key for medical records
-5. Keep those secrets outside the repository and preserve the medical encryption key securely. **Losing the key makes newly encrypted medical records unrecoverable.** Never reuse the synthetic key found in the GitHub Actions test fixture.
-
-Build and start from the repository root:
+Build using the existing, pinned Maven configuration:
 
 ```sh
-mvn -DskipTests package
-java -jar target/hospital-management-system-2.0.0.jar
+mvn -B -DskipTests package
 ```
 
-On Windows, `baslat.bat` builds and starts the same Java application.
+1. On an isolated MySQL 8 host, create a **new empty** `hospital` database with `db/schema.sql`. Never run the fresh schema over existing medical records.
+2. Provision a separate limited-privilege gateway database identity. The CI-only template `db/ci/least_privilege.sql` uses synthetic credentials; **never reuse them outside CI**.
+3. On the trusted Java service host, configure JDBC credentials, a valid TLS PKCS12 server certificate, a strong server-side administrator secret and protected medical keyring.
+4. Start the trusted gateway using `java -cp target/hospital-management-system-2.0.0.jar db.GatewayServer`.
+5. On the client computer, configure only `HOSPITAL_GATEWAY_URL=https://your-verified-host:8443/api` and the Java truststore containing the server's trusted issuer. Launch with `java -jar target/hospital-management-system-2.0.0.jar`.
 
-### Setting up a pre-existing database
+**Never distribute `HOSPITAL_DB_PASSWORD`, `HOSPITAL_ADMIN_PASSWORD`, `HOSPITAL_DATA_KEYRING_DIR`, or any key files with the Swing client.** Remote gateway binding must be explicitly authorized and protected by firewall rules and certificate validation.
 
-**Do not automatically overwrite or reimport an existing database.** Back up MySQL first and verify recovery on a disposable copy. Run `db/migrations/001_secure_accounts.sql` **once**, only after checking that its columns and indexes do not already exist.
+For exact environment variables, certificate guidance and safe commands, read [Operations & Recovery](docs/OPERATIONS.md).
 
-The migration leaves old integer `SSN` primary keys and appointment foreign keys intact. It adds `National_ID VARCHAR(11)`, a longer `password_hash`, and persistent account-lockout columns to both Patient and Doctor tables. Existing accounts remain inaccessible through password login until an administrator provisions them. Legacy SHA-256 passwords are not accepted and are never silently reused.
+## Existing data and encryption migration
 
-For an existing user, run the interactive account-provisioning command from a real terminal **after** setting the database and administrator environment variables:
+A pre-existing database must be backed up and **restored successfully to an isolated copy before any migration**.
 
-```sh
-java -cp target/hospital-management-system-2.0.0.jar db.CredentialProvisioner
-```
+- Apply `db/migrations/001_secure_accounts.sql`, then `002_audit_events.sql`, then `003_private_addresses.sql` **only if those changes are absent**, after comparing the schema. These migrations are not automatic or generally idempotent.
+- Perform `db.LegacyDataMigrator --scan` first.
+- Only on the trusted database host, use `--apply` with a verified backup file + SHA-256 digest, a manually verified restore approval, and a valid versioned encryption keyring.
+- Previously encrypted clinical data can be re-encrypted under a new key ID without changing dependency versions. Retain old keys while backups require them.
+- `db.BackupVault` encrypts and decrypts SQL backup artifacts with an **independent** AES-256-GCM key and never publishes a failed-authentication restore.
+- `db.KeyFileGenerator` creates new random owner-only key files without printing key material.
 
-The tool asks for the administrator password, role, existing internal numeric ID, 11-digit identifier, and a new user password. It does not take secrets as command-line arguments and does not overwrite a current PBKDF2 credential. Keep the historical database backup available while checking the migration.
+**Migration is never executed on desktop application startup.** A bad or ambiguous record stops the operation instead of silently deleting data.
 
-## Account model and controls
+## Test and release evidence
 
-- Newly registered patients and doctors receive an administrator-assigned password (12–128 characters containing letters and numbers).
-- Login accepts either the **11-digit identifier** or an existing short internal account number **plus a password**. Entering just a name, surname, or numeric ID is no longer sufficient.
-- National IDs are stored as strings to preserve leading zeros. Their 11-digit format is checked, but **format checking does not verify legal identity or ownership**.
-- The existing integer `SSN` primary keys remain internal references. Do not insert 11-digit identifiers into those columns.
-- Invalid, disabled, locked, unknown, or unprovisioned accounts fail closed. Password errors use generic messages.
-- Patient and doctor account lockouts are stored in MySQL; the administrator password remains a local environment secret and administrator throttling is only in process.
-- Role-separated screens use `AccessPolicy`. Because the desktop app connects directly to MySQL, these are **not independently enforceable server-side permissions**.
+The GitHub Actions workflows run a disposable MySQL 8 instance, provision a separate non-root gateway database account, start a real JDK HTTPS server with a synthetic certificate, verify role and cross-user access behavior, and test Swing GUI flows. Backup tests restore MySQL to a second schema, compare counts and audit triggers, reject tampered archives, migrate and rotate synthetic encryption keys.
 
-## Medical data encryption
+The version guard in `ci/verify-legacy-stack.sh` rejects accidental dependency or framework upgrades.
 
-New rows written through `MedicalRecordsDAO` encrypt the `Prescription` and `Diagnosis` values using AES-256-GCM with a random 12-byte nonce and 128-bit authentication tag. Encryption fails closed if `HOSPITAL_DATA_KEY_BASE64` is absent or invalid.
+**Passing CI is not a substitute for a completed hospital deployment, full privacy compliance, a vulnerability assessment or medical safety certification.** Detailed release blockers are tracked in [Release Checklist](docs/RELEASE_CHECKLIST.md).
 
-This **does not retroactively encrypt old records**, patient addresses, names, identifiers, or backups. Legacy unencrypted data requires a separate, backed-up migration and key-management review; it is not converted automatically. Existing unsupported ciphertext formats are rejected instead of being silently decrypted through a weak legacy cipher.
+## Documentation
 
-## Verification
+- [System architecture](docs/ARCHITECTURE.md)
+- [Security and outstanding risks](SECURITY.md)
+- [Operations, migration, backup and restore](docs/OPERATIONS.md)
+- [Quality and production release checklist](docs/RELEASE_CHECKLIST.md)
 
-GitHub Actions runs:
-
-- Java compile and pure-Java security/model smoke tests
-- MySQL 8 integration tests for database operations, appointments, credential authentication, account lockout, 11-digit ID preservation, and encrypted new medical records
-- Xvfb-backed Java Swing GUI smoke tests for login buttons, role-based navigation, and appointment availability
-- Short-lived GUI screenshots as CI artifacts
-
-Passing these tests demonstrates the covered behavior; it is **not** a penetration test or a production-security certification.
-
-## Known limitations and required production work
-
-1. **Never load real patient information into this demonstration build.** A proper backend with server-side role and row-level authorization is still required; the desktop application currently holds a database connection credential.
-2. Existing records and backups may still contain plaintext personal and medical information. A careful data-migration and key-rotation plan is required.
-3. A complete identity-proofing, password-recovery, administrator-account, audit-logging, backup/restore and retention design must be completed before deployment.
-4. MySQL network access, least-privilege accounts, TLS configuration and protected secret storage must be hardened for the target environment.
-5. Medical privacy requirements (including applicable Turkish KVKK rules) require operational and legal review.
-6. The project intentionally retains its legacy MySQL schema relationships and tool versions; no major architectural or dependency upgrade was performed.
-
-This repository demonstrates the original Java Swing / JDBC / MySQL workflows while making the most dangerous legacy login and encryption paths fail closed.
+This project demonstrates that thoughtful architecture, data integrity and defensive engineering are possible with classic Java technologies.

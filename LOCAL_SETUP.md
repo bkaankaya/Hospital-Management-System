@@ -1,13 +1,11 @@
-# Local setup and safe migration
+# Local build / gateway setup
 
-See `README.md` for all features, version pins and security limitations.
+This project intentionally preserves Java Swing + Java 11 source compatibility + JDBC + MySQL 8.x. There is **no dependency version upgrade**.
 
-1. Install JDK 17+, Apache Maven and MySQL 8.x.
-2. New database: use `db/schema.sql` only on a **new, empty** local database.
-3. Existing database: back up, verify restore and apply `db/migrations/001_secure_accounts.sql` ONCE after reviewing the schema.
-4. Configure `HOSPITAL_DB_URL`, `HOSPITAL_DB_USER`, `HOSPITAL_DB_PASSWORD`, `HOSPITAL_ADMIN_PASSWORD`, and persistent `HOSPITAL_DATA_KEY_BASE64` outside Git.
-5. Build with `mvn -DskipTests package`; start with `java -jar target/hospital-management-system-2.0.0.jar` or Windows `baslat.bat`.
-6. Existing accounts cannot log in with name + ID. Provision a password interactively: `java -cp target/hospital-management-system-2.0.0.jar db.CredentialProvisioner`.
-7. Use synthetic records only. Direct desktop-to-MySQL authorization and older unencrypted records prevent production clinical use.
+Build with `mvn -B -DskipTests package`. The Swing desktop is now an HTTPS client; do not pass JDBC credentials to it. Configure only `HOSPITAL_GATEWAY_URL` plus certificate trust and run `java -jar target/hospital-management-system-2.0.0.jar`.
 
-Pinned dependencies: MySQL Connector/J 8.2.0, Maven Compiler Plugin 3.11.0, Maven Shade Plugin 3.4.1; release 11 bytecode; application 2.0.0.
+The trusted Java gateway is a **separate process** started with `java -cp target/hospital-management-system-2.0.0.jar db.GatewayServer`, using server-only MySQL credentials, TLS PKCS12 certificate, administrator secret and medical keyring. The default gateway binds only to loopback.
+
+For a new demo database use `db/schema.sql` once. For existing data, back up and restore first; review `db/migrations/001_secure_accounts.sql`, `002_audit_events.sql`, `003_private_addresses.sql`, then use `db.LegacyDataMigrator --scan` and explicitly approved `--apply`. The `db.BackupVault` utility protects SQL exports using an independently generated backup key.
+
+**Do not use real patient data.** Consult `docs/OPERATIONS.md`, `SECURITY.md` and `docs/RELEASE_CHECKLIST.md` for complete commands, environment variables and remaining production blockers.
