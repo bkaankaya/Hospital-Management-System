@@ -79,12 +79,99 @@ public final class SecurityManager {
         return value == null ? null : decrypt(value, key.getBytes(StandardCharsets.UTF_8));
     }
 
+    /**
+     * Versioned encryption envelope. The active key belongs to the trusted
+     * server's protected keyring, never to the distributed Swing application.
+     * Legacy v1 ciphertext is only readable with the separately retained old key.
+     */
     public static String encryptMedicalText(String value) {
-        return value == null ? null : encrypt(value, medicalKey());
+        if (value == null) return null;
+        String active = System.getenv("HOSPITAL_DATA_ACTIVE_KEY_ID");
+        if (active == null || active.isBlank()) {
+            if (!Boolean.getBoolean("hospital.ci.legacyFixtures"))
+                throw new IllegalStateException("An active medical encryption key is required");
+            byte[] old = medicalKey();
+            try { return encrypt(value, old); }
+            finally { Arrays.fill(old, (byte) 0); }
+        }
+        byte[] key = keyFromKeyring(active);
+        try {
+            String legacyEnvelope = encrypt(value, key);
+            return "enc:v2:" + active + ":" + legacyEnvelope.substring(CIPHER_PREFIX.length());
+        } finally { Arrays.fill(key, (byte) 0); }
     }
 
     public static String decryptMedicalText(String value) {
-        return value == null ? null : decrypt(value, medicalKey());
+        if (value == null) return null;
+        if (value.startsWith("enc:v2:")) {
+            int separator = value.indexOf(':', "enc:v2:".length());
+            if (separator <= 7) throw new IllegalArgumentException("Invalid key reference");
+            String id = value.substring(7, separator);
+            byte[] key = keyFromKeyring(id);
+            try { return decrypt(CIPHER_PREFIX + value.substring(separator + 1), key); }
+            finally { Arrays.fill(key, (byte) 0); }
+        }
+        if (value.startsWith(CIPHER_PREFIX)) {
+            byte[] old = medicalKey();
+            try { return decrypt(value, old); }
+            finally { Arrays.fill(old, (byte) 0); }
+        }
+        throw new IllegalArgumentException("Unsupported or unencrypted data format");
+    }
+
+    /** Designed for backed-up and explicitly approved in-place migrations. */
+    public static String reencryptMedicalText(String value) {
+        if (value == null) return null;
+        String active = activeKeyId();
+        if (value.startsWith("enc:v2:" + active + ":")) return value;
+        if (value.startsWith("enc:") && !value.startsWith("enc:v2:")
+                && !value.startsWith(CIPHER_PREFIX)) {
+            throw new IllegalArgumentException("Unknown ciphertext format");
+        }
+        String plain = value.startsWith("enc:") ? decryptMedicalText(value) : value;
+        return encryptMedicalText(plain);
+    }
+
+    public static boolean isEncryptedWithActiveKey(String value) {
+        return value == null || value.startsWith("enc:v2:" + activeKeyId() + ":");
+    }
+
+    private static String activeKeyId() {
+        String id = System.getenv("HOSPITAL_DATA_ACTIVE_KEY_ID");
+        if (!validKeyId(id)) throw new IllegalStateException("Active key ID is missing or invalid");
+        return id;
+    }
+
+    private static boolean validKeyId(String value) {
+        return value != null && value.matches("[A-Za-z0-9_-]{1,32}");
+    }
+
+    private static byte[] keyFromKeyring(String id) {
+        if (!validKeyId(id)) throw new IllegalArgumentException("Invalid key identifier");
+        String directory = System.getenv("HOSPITAL_DATA_KEYRING_DIR");
+        if (directory == null || directory.isBlank())
+            throw new IllegalStateException("HOSPITAL_DATA_KEYRING_DIR must be configured");
+        try {
+            java.nio.file.Path dir = java.nio.file.Path.of(directory).toRealPath();
+            java.nio.file.Path file = dir.resolve(id + ".key");
+            if (!java.nio.file.Files.isRegularFile(file, java.nio.file.LinkOption.NOFOLLOW_LINKS)
+                    || java.nio.file.Files.isSymbolicLink(file))
+                throw new IllegalStateException("Medical key is absent or not a regular file");
+            if (java.nio.file.Files.getFileStore(file).supportsFileAttributeView("posix")) {
+                java.util.Set<java.nio.file.attribute.PosixFilePermission> permissions =
+                        java.nio.file.Files.getPosixFilePermissions(file);
+                for (java.nio.file.attribute.PosixFilePermission p : permissions) {
+                    if (p.name().startsWith("GROUP_") || p.name().startsWith("OTHERS_"))
+                        throw new IllegalStateException("Medical key file permissions must be owner-only");
+                }
+            }
+            String base64 = java.nio.file.Files.readString(file, StandardCharsets.US_ASCII).trim();
+            byte[] key = Base64.getDecoder().decode(base64);
+            if (key.length != 32) throw new IllegalStateException("Medical key must be 256 bits");
+            return key;
+        } catch (java.io.IOException | IllegalArgumentException ex) {
+            throw new IllegalStateException("Cannot access a protected medical encryption key", ex);
+        }
     }
 
     private static byte[] medicalKey() {
