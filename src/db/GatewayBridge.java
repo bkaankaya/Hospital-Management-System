@@ -38,7 +38,7 @@ public final class GatewayBridge {
     }
 
     public static int doctorId(String label) {
-        if (!GatewayClient.useGateway()) return new DoctorDAO().getDoctorSsn(label);
+        if (!GatewayClient.useGateway()) return new DoctorDAO().getDoctorSsnByLabel(label);
         List<String[]> answer = ask("DOCTOR_ID", label);
         try { return answer == null || answer.size() != 1
                 ? 0 : Integer.parseInt(answer.get(0)[0]); }

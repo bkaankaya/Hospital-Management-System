@@ -32,6 +32,13 @@ public final class IntegrationSmokeTest {
         require(!doctors.checkDoctorLogin(doctorId, "Ada", "Lovelace"), "Legacy passwordless doctor login must fail");
         require(!patients.checkPatientLogin(patientId, "Anna", "Testpatient"), "Legacy passwordless patient login must fail");
         require(SecureAccounts.authenticate(SecureAccounts.Kind.DOCTOR, "90000000002", demoPassword) == doctorId, "Doctor credential login failed");
+        java.util.List<String> doctorLabels = doctors.getDoctorList("Cardiology");
+        require(doctorLabels != null && doctorLabels.contains("Ada Lovelace [ID: " + doctorId + "]"),
+                "Doctor selection labels must include stable internal identity");
+        require(doctors.getDoctorSsnByLabel("Ada Lovelace [ID: " + doctorId + "]") == doctorId,
+                "Doctor selection ID did not resolve correctly");
+        require(doctors.getDoctorSsnByLabel("Ada Lovelace [ID: " + (doctorId + 1) + "]") == 0,
+                "Tampered doctor display label resolved to an unrelated identity");
         require(SecureAccounts.authenticate(SecureAccounts.Kind.PATIENT, "90000000001", demoPassword) == patientId, "Patient credential login failed");
         require(SecureAccounts.authenticate(SecureAccounts.Kind.PATIENT, "90000000001", "wrong".toCharArray()) == 0, "Wrong password accepted");
         java.util.Arrays.fill(demoPassword, '\0');

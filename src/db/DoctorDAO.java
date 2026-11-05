@@ -148,7 +148,9 @@ public class DoctorDAO {
 	{
 		ArrayList<String> list = new ArrayList<String>() ;
 		try (Connection con = DatabaseManager.getConnection();
-			PreparedStatement pst = con.prepareStatement("select concat(name, ' ', surname) from Doctor where department_name=?") ){
+			PreparedStatement pst = con.prepareStatement("SELECT CONCAT(Name, ' ', Surname, ' [ID: ', SSN, ']') "
+                    + "FROM Doctor WHERE Department_Name=? AND is_active=1 "
+                    + "ORDER BY Name, Surname, SSN LIMIT 100") ){
 			pst.setString(1, dep);
 		try (ResultSet set = pst.executeQuery() ){
 			
@@ -180,6 +182,30 @@ public class DoctorDAO {
 
 	}
 	
+
+    /**
+     * Stable doctor selection even when two physicians share the same name.
+     * Do not use a display name alone as an authorization or booking identifier.
+     */
+    public int getDoctorSsnByLabel(String label) {
+        if (label == null) return 0;
+        java.util.regex.Matcher match = java.util.regex.Pattern.compile(
+                "^(.{1,200}) \\[ID: ([1-9][0-9]{0,9})\\]$").matcher(label);
+        if (!match.matches()) return 0;
+        final int id;
+        try { id = Integer.parseInt(match.group(2)); }
+        catch (NumberFormatException ex) { return 0; }
+        String sql = "SELECT SSN FROM Doctor WHERE SSN=? "
+                + "AND CONCAT(Name, ' ', Surname)=? AND is_active=1";
+        try (Connection connection = DatabaseManager.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setInt(1, id);
+            statement.setString(2, match.group(1));
+            try (ResultSet row = statement.executeQuery()) {
+                return row.next() ? row.getInt(1) : 0;
+            }
+        } catch (SQLException ex) { return 0; }
+    }
 
     public boolean tryUpdateAddress(int doctorId, String newAddress) {
         if (doctorId <= 0 || newAddress == null || newAddress.trim().isEmpty()) return false;

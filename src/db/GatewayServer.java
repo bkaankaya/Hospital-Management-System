@@ -342,7 +342,7 @@ public final class GatewayServer {
             case "DOCTOR_ID":
                 fields(args, 1);
                 return Collections.singletonList(new String[]{
-                        String.valueOf(new DoctorDAO().getDoctorSsn(clean(args[0], 220)))});
+                        String.valueOf(new DoctorDAO().getDoctorSsnByLabel(clean(args[0], 220)))});
             case "SLOTS":
                 fields(args, 2);
                 return column(new AppointmentDAO().getTimeList(positive(args[0]),
