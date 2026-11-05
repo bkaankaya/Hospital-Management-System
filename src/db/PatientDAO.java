@@ -109,10 +109,15 @@ public class PatientDAO {
                 + "CONCAT(d.Name, ' ', d.Surname), d.Department_Name "
                 + "FROM Patient p LEFT JOIN Appointment a ON a.Patient_SSN = p.SSN "
                 + "LEFT JOIN Doctor d ON d.SSN = a.Doctor_SSN "
-                + "WHERE p.Name LIKE ? OR p.Surname LIKE ? ORDER BY p.Name, p.Surname, a.Date, a.Time";
+                + "WHERE (p.Name LIKE ? ESCAPE '!' OR p.Surname LIKE ? ESCAPE '!') "
+                + "ORDER BY p.Name, p.Surname, a.Date, a.Time LIMIT 100";
         try (Connection con = DatabaseManager.getConnection();
              PreparedStatement stmt = con.prepareStatement(sql)) {
-            String pattern = "%" + (like == null ? "" : like.trim()) + "%";
+            String term = like == null ? "" : like.trim();
+            if (term.length() < 2 || term.length() > 80) return rows;
+            // Treat user input as a literal substring, not a SQL wildcard.
+            String escaped = term.replace("!", "!!").replace("%", "!%").replace("_", "!_");
+            String pattern = "%" + escaped + "%";
             stmt.setString(1, pattern);
             stmt.setString(2, pattern);
             try (ResultSet result = stmt.executeQuery()) {
