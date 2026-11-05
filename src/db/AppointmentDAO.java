@@ -53,7 +53,7 @@ public class AppointmentDAO {
         if (appointmentId <= 0 || doctorId <= 0) return false;
         String sql = "DELETE FROM Appointment WHERE app_id=? AND Doctor_SSN=? "
                 + "AND (Date > CURRENT_DATE() OR (Date = CURRENT_DATE() AND Time > CURRENT_TIME())) "
-                + "AND NOT EXISTS (SELECT 1 FROM \`Add\` a "
+                + "AND NOT EXISTS (SELECT 1 FROM `Add` a "
                 + "WHERE a.Doctor_SSN=Appointment.Doctor_SSN "
                 + "AND a.Date=Appointment.Date AND a.Time=Appointment.Time)";
         try (Connection con = DatabaseManager.getConnection();
