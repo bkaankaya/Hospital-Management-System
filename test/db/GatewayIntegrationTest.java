@@ -54,6 +54,48 @@ public final class GatewayIntegrationTest {
         expectDenied(client, "PATIENT_SCHEDULE");
         expectDenied(client, "DOCTOR_SCHEDULE");
         expectDenied(client, "BOOK", "1001001", "2026-12-12", "09:00:00");
+        // Register two additional synthetic principals through the trusted server.
+        check(GatewayClient.success(client.call("REGISTER_PATIENT",
+                "1002011", "Nora", "Synthetic", "Female", "Fixture address",
+                "2001-01-01", "90000000011", "DemoSecurePassword123!")),
+                "Administrator could not register a password-protected patient");
+        check(GatewayClient.success(client.call("REGISTER_DOCTOR",
+                "1001011", "Owen", "Synthetic", "Male", "Fixture address",
+                "1988-01-01", "Cardiology", "90000000012", "DemoSecurePassword123!")),
+                "Administrator could not register a password-protected doctor");
+        client.logout();
+
+        int otherPatient = client.login(GatewayPolicy.Role.PATIENT, "90000000011",
+                "DemoSecurePassword123!".toCharArray());
+        check(otherPatient == 1002011, "Second patient identity was not verified");
+        String tomorrow = java.time.LocalDate.now().plusDays(1).toString();
+        check(GatewayClient.success(client.call("BOOK", "1001001", tomorrow, "10:00:00")),
+                "Second patient's booking failed");
+        List<String[]> ownVisits = client.call("PATIENT_SCHEDULE");
+        check(ownVisits.size() == 1, "Second patient's scheduled visit not visible");
+        String bookedId = ownVisits.get(0)[0];
+        client.logout();
+
+        client.login(GatewayPolicy.Role.PATIENT, "90000000001",
+                "DemoSecurePassword123!".toCharArray());
+        check(client.call("PATIENT_SCHEDULE").isEmpty(),
+                "Patient could read another patient's appointment");
+        client.logout();
+
+        client.login(GatewayPolicy.Role.DOCTOR, "90000000012",
+                "DemoSecurePassword123!".toCharArray());
+        check(client.call("DOCTOR_SCHEDULE").isEmpty(),
+                "Doctor could read an unrelated physician's schedule");
+        check(!GatewayClient.success(client.call("DOCTOR_CANCEL", bookedId)),
+                "Doctor cancelled another physician's appointment");
+        client.logout();
+
+        client.login(GatewayPolicy.Role.DOCTOR, "90000000002",
+                "DemoSecurePassword123!".toCharArray());
+        check(client.call("DOCTOR_SCHEDULE").size() == 1,
+                "Authorized doctor could not view booked visit");
+        check(GatewayClient.success(client.call("DOCTOR_CANCEL", bookedId)),
+                "Authorized doctor could not cancel own unlinked visit");
         client.logout();
 
         // This account is independent from the root account used to prepare the
