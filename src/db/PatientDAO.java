@@ -71,7 +71,9 @@ public class PatientDAO {
 				p.Name = set.getString(2);
 				p.Surname = set.getString(3);
 				p.Gender = set.getString(4);
-				p.Address = set.getString(5);
+				String protectedAddress = set.getString("Address_Cipher");
+                p.Address = protectedAddress == null ? set.getString("Address")
+                        : SecurityManager.decryptMedicalText(protectedAddress);
 				p.Date_Of_Birth = set.getString(6);
 				return p;
 			}
@@ -130,10 +132,10 @@ public class PatientDAO {
 
     public boolean tryUpdateAddress(int patientId, String newAddress) {
         if (patientId <= 0 || newAddress == null || newAddress.trim().isEmpty()) return false;
-        String sql = "UPDATE Patient SET Address = ? WHERE SSN = ?";
+        String sql = "UPDATE Patient SET Address = NULL, Address_Cipher = ? WHERE SSN = ?";
         try (Connection con = DatabaseManager.getConnection();
              PreparedStatement stmt = con.prepareStatement(sql)) {
-            stmt.setString(1, newAddress.trim());
+            stmt.setString(1, SecurityManager.encryptMedicalText(newAddress.trim()));
             stmt.setInt(2, patientId);
             return stmt.executeUpdate() == 1;
         } catch (SQLException ex) {

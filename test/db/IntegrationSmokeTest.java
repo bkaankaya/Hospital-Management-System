@@ -82,6 +82,16 @@ public final class IntegrationSmokeTest {
 
         require(doctors.tryUpdateAddress(doctorId, "Updated doctor address"), "Doctor address not updated");
         require(patients.tryUpdateAddress(patientId, "Updated patient address"), "Patient address not updated");
+        try (Connection con = DatabaseManager.getConnection();
+             PreparedStatement addressCheck = con.prepareStatement(
+                     "SELECT Address, Address_Cipher FROM Patient WHERE SSN=?")) {
+            addressCheck.setInt(1, patientId);
+            try (ResultSet r = addressCheck.executeQuery()) {
+                require(r.next() && r.getString(1) == null
+                        && r.getString(2).startsWith("enc:v1:"),
+                        "Updated patient address must not remain in plaintext");
+            }
+        }
         require(patients.patientNameLike("Anna") != null &&
                 !patients.patientNameLike("Anna").isEmpty(), "Patient search returned nothing");
 

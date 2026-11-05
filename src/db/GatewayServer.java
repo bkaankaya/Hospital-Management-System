@@ -68,7 +68,9 @@ public final class GatewayServer {
             throw new IllegalStateException("Gateway refuses MySQL root credentials");
         envRequired("HOSPITAL_DB_PASSWORD");
         envRequired("HOSPITAL_DB_URL");
-        envRequired("HOSPITAL_DATA_KEY_BASE64");
+        // New medical writes use versioned keys stored on the trusted host.
+        envRequired("HOSPITAL_DATA_KEYRING_DIR");
+        envRequired("HOSPITAL_DATA_ACTIVE_KEY_ID");
         // Fail immediately if the database is not accessible or wrongly configured.
         try (Connection connection = DatabaseManager.getConnection()) {
             if (!connection.isValid(5)) throw new SQLException("Database connection unavailable");

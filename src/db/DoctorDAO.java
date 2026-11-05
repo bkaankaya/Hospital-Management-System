@@ -74,7 +74,9 @@ public class DoctorDAO {
 				doc.setName(set.getString(2));
 				doc.setSurname(set.getString(3));
 				doc.setGender(set.getString(4));
-				doc.setAddress(set.getString(5));
+				String protectedAddress = set.getString("Address_Cipher");
+                    doc.setAddress(protectedAddress == null ? set.getString("Address")
+                            : SecurityManager.decryptMedicalText(protectedAddress));
 				doc.setDateOfBirth(set.getString(6));
 				doc.setDepartmentName(set.getString(7));
 				return doc;
@@ -104,7 +106,9 @@ public class DoctorDAO {
 					doc.setName(set.getString(2));
 					doc.setSurname(set.getString(3));
 					doc.setGender(set.getString(4));
-					doc.setAddress(set.getString(5));
+					String protectedAddress = set.getString("Address_Cipher");
+                    doc.setAddress(protectedAddress == null ? set.getString("Address")
+                            : SecurityManager.decryptMedicalText(protectedAddress));
 					doc.setDateOfBirth(set.getString(6));
 					doc.setDepartmentName(set.getString(7));
 					return doc;
@@ -179,10 +183,10 @@ public class DoctorDAO {
 
     public boolean tryUpdateAddress(int doctorId, String newAddress) {
         if (doctorId <= 0 || newAddress == null || newAddress.trim().isEmpty()) return false;
-        String sql = "UPDATE Doctor SET Address = ? WHERE SSN = ?";
+        String sql = "UPDATE Doctor SET Address = NULL, Address_Cipher = ? WHERE SSN = ?";
         try (Connection con = DatabaseManager.getConnection();
              PreparedStatement stmt = con.prepareStatement(sql)) {
-            stmt.setString(1, newAddress.trim());
+            stmt.setString(1, SecurityManager.encryptMedicalText(newAddress.trim()));
             stmt.setInt(2, doctorId);
             return stmt.executeUpdate() == 1;
         } catch (SQLException ex) {

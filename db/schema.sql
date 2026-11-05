@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS Patient (
     Surname VARCHAR(100) NOT NULL,
     Gender VARCHAR(20) NOT NULL,
     Address VARCHAR(500),
+    Address_Cipher TEXT NULL,
     Date_Of_Birth DATE NOT NULL,
     National_ID VARCHAR(11) NULL UNIQUE,
     password_hash VARCHAR(255) NULL,
@@ -28,6 +29,7 @@ CREATE TABLE IF NOT EXISTS Doctor (
     Surname VARCHAR(100) NOT NULL,
     Gender VARCHAR(20) NOT NULL,
     Address VARCHAR(500),
+    Address_Cipher TEXT NULL,
     Date_Of_Birth DATE NOT NULL,
     Department_Name VARCHAR(80) NOT NULL,
     National_ID VARCHAR(11) NULL UNIQUE,
@@ -120,12 +122,12 @@ CREATE TRIGGER audit_medical_record_created AFTER INSERT ON Medical_Records FOR 
 CREATE TRIGGER audit_patient_address_changed AFTER UPDATE ON Patient FOR EACH ROW
     INSERT INTO Audit_Event (Event_Type, Subject_Type, Subject_Ref)
     SELECT 'PATIENT_ADDRESS_UPDATED', 'PATIENT', NEW.SSN
-    WHERE NOT (OLD.Address <=> NEW.Address);
+    WHERE NOT (OLD.Address <=> NEW.Address) OR NOT (OLD.Address_Cipher <=> NEW.Address_Cipher);
 
 CREATE TRIGGER audit_doctor_address_changed AFTER UPDATE ON Doctor FOR EACH ROW
     INSERT INTO Audit_Event (Event_Type, Subject_Type, Subject_Ref)
     SELECT 'DOCTOR_ADDRESS_UPDATED', 'DOCTOR', NEW.SSN
-    WHERE NOT (OLD.Address <=> NEW.Address);
+    WHERE NOT (OLD.Address <=> NEW.Address) OR NOT (OLD.Address_Cipher <=> NEW.Address_Cipher);
 
 INSERT IGNORE INTO Department (Department_Name) VALUES
     ('Cardiology'), ('Neurology'), ('Diagnostics'), ('Orthopedics');

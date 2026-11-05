@@ -122,15 +122,15 @@ public final class SecureAccounts {
         SecurityManager.requireStrongPassword(password);
         String salt = SecurityManager.generateSalt();
         String hash = SecurityManager.hashPassword(password, salt);
-        String sql = "INSERT INTO Patient (SSN, Name, Surname, Gender, Address, Date_Of_Birth, "
-                + "National_ID, password_hash, salt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO Patient (SSN, Name, Surname, Gender, Address, Address_Cipher, Date_Of_Birth, "
+                + "National_ID, password_hash, salt) VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, ?)";
         try (Connection con = DatabaseManager.getConnection();
              PreparedStatement insert = con.prepareStatement(sql)) {
             insert.setInt(1, patient.SSN);
             insert.setString(2, patient.Name);
             insert.setString(3, patient.Surname);
             insert.setString(4, patient.Gender);
-            insert.setString(5, patient.Address);
+            insert.setString(5, SecurityManager.encryptMedicalText(patient.Address));
             insert.setString(6, patient.Date_Of_Birth);
             insert.setString(7, nationalId);
             insert.setString(8, hash);
@@ -144,15 +144,15 @@ public final class SecureAccounts {
         SecurityManager.requireStrongPassword(password);
         String salt = SecurityManager.generateSalt();
         String hash = SecurityManager.hashPassword(password, salt);
-        String sql = "INSERT INTO Doctor (SSN, Name, Surname, Gender, Address, Date_Of_Birth, "
-                + "Department_Name, National_ID, password_hash, salt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO Doctor (SSN, Name, Surname, Gender, Address, Address_Cipher, Date_Of_Birth, "
+                + "Department_Name, National_ID, password_hash, salt) VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?)";
         try (Connection con = DatabaseManager.getConnection();
              PreparedStatement insert = con.prepareStatement(sql)) {
             insert.setInt(1, doctor.getSSN());
             insert.setString(2, doctor.getName());
             insert.setString(3, doctor.getSurname());
             insert.setString(4, doctor.getGender());
-            insert.setString(5, doctor.getAddress());
+            insert.setString(5, SecurityManager.encryptMedicalText(doctor.getAddress()));
             insert.setString(6, doctor.getDateOfBirthAsString());
             insert.setString(7, doctor.getDepartmentName());
             insert.setString(8, nationalId);

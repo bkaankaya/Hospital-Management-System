@@ -66,6 +66,12 @@ jobs:
             -storetype PKCS12 -storepass ci-trust-only-password
           javac --release 11 -encoding UTF-8 -cp target/hospital-management-system-2.0.0.jar \
             -d build/integration-tests test/db/GatewayIntegrationTest.java
+          mkdir -p build/gateway-ci/keys
+          chmod 700 build/gateway-ci/keys
+          printf '%s' 'MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=' > build/gateway-ci/keys/ci1.key
+          chmod 600 build/gateway-ci/keys/ci1.key
+          export HOSPITAL_DATA_KEYRING_DIR="$PWD/build/gateway-ci/keys"
+          export HOSPITAL_DATA_ACTIVE_KEY_ID=ci1
           export HOSPITAL_SERVER_KEYSTORE="$PWD/build/gateway-ci/server.p12"
           export HOSPITAL_SERVER_KEYSTORE_PASSWORD=ci-keystore-only-password
           export HOSPITAL_ADMIN_PASSWORD=ci-admin-gateway-demo-password
